@@ -7,6 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#07101c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>미팅 통역</title>
 <style>
 :root{
@@ -185,6 +188,7 @@ select,input,textarea{font:inherit;color:var(--text)}
 <!-- menu -->
 <div class="sheet" id="sheetMenu">
   <div class="grab"></div>
+  <button class="menu-item" data-act="install" id="menuInstall" style="display:none"><span class="mi">📲</span><span>앱으로 설치<small>홈 화면 아이콘으로 바로 열기 (주소창 없이)</small></span></button>
   <button class="menu-item" data-act="summary"><span class="mi">📝</span><span>회의 요약<small>지금까지 대화를 9개 항목으로 요약</small></span></button>
   <button class="menu-item" data-act="infoChat"><span class="mi">📊</span><span>대화로 인포그래픽 만들기<small>현재 대화(실시간 통역 포함)를 한 장으로</small></span></button>
   <button class="menu-item" data-act="recordings"><span class="mi">🎧</span><span>녹음 목록<small>실시간 통역 녹음 저장·공유·인포그래픽</small></span></button>
@@ -1419,7 +1423,8 @@ $('btnMenu').onclick = () => openSheet('sheetMenu');
 $('sheetMenu').onclick = e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act; closeSheets();
-  if (act === 'summary') doSummary();
+  if (act === 'install') promptInstall();
+  else if (act === 'summary') doSummary();
   else if (act === 'infoChat') infoFromChat();
   else if (act === 'recordings') openRecordings();
   else if (act === 'infoFile') { if (!settings.apiKey) return toast('먼저 ⚙ 설정에서 API 키를 입력하세요'); $('fileAudio').value = ''; $('fileAudio').click(); }
@@ -1500,6 +1505,27 @@ $('fileGlossary').onchange = async e => {
 $('btnGlossaryReset').onclick = () => { settings.glossaryCsv = null; saveSettings(); loadGlossary(); $('glossaryInfo').textContent = `기본 사전 · ${glossary.length}개 용어`; };
 
 window.addEventListener('beforeunload', e => { if (live) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------------- install as app (PWA) ---------------- */
+const isInstalled = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+let installPrompt = null;
+// Chrome/Samsung Internet hand us the install prompt once the page qualifies; keep it for the menu.
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); installPrompt = e;
+  $('menuInstall').style.display = '';
+  if (!store.get('bmt.installHinted', false)) { store.set('bmt.installHinted', true); toast('☰ 메뉴 → 📲 앱으로 설치 로 홈 화면에 추가할 수 있습니다', 4500); }
+});
+window.addEventListener('appinstalled', () => { installPrompt = null; $('menuInstall').style.display = 'none'; toast('설치했습니다 · 홈 화면의 "미팅 통역" 아이콘으로 여세요', 4500); });
+async function promptInstall() {
+  if (!installPrompt) { toast('브라우저 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"를 누르세요', 4500); return; }
+  const p = installPrompt; installPrompt = null; $('menuInstall').style.display = 'none';
+  try { await p.prompt(); await p.userChoice; } catch {}
+}
+// The service worker only exists on the hosted (https) copy; a locally opened file skips it.
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+if (!isInstalled() && location.protocol === 'https:' && !('onbeforeinstallprompt' in window)) $('menuInstall').style.display = '';
 
 /* ---------------- init ---------------- */
 for (const m of messages) if (m.state === 'pending') { m.state = 'fail'; m.trans = '번역이 중단되었습니다'; }
