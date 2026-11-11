@@ -98,6 +98,7 @@ select,input,textarea{font:inherit;color:var(--text)}
 .sheet{position:fixed;left:0;right:0;bottom:0;background:#0f1b2e;border-radius:20px 20px 0 0;border-top:1px solid var(--border2);
   padding:10px 14px calc(16px + var(--safe-b));z-index:210;transform:translateY(105%);transition:transform .22s ease;max-height:88dvh;overflow-y:auto}
 .sheet.on{transform:none}
+.sheet.top{z-index:330} .backdrop.top{z-index:320}
 .grab{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:2px auto 10px}
 .sheet h3{font-size:1rem;margin:4px 2px 12px}
 .menu-item{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;text-align:left;padding:13px 6px;
@@ -230,6 +231,20 @@ select,input,textarea{font:inherit;color:var(--text)}
   <div id="recList"></div>
 </div>
 
+<!-- ChatGPT image request (shown above the viewer) -->
+<div class="sheet top" id="sheetGpt">
+  <div class="grab"></div>
+  <h3>🎨 ChatGPT로 이미지 인포그래픽 만들기</h3>
+  <div class="warnbox" style="background:rgba(99,102,241,.12);border-color:rgba(129,140,248,.35);color:#c7d2fe">
+    요청문을 ChatGPT에 보내면 그림으로 된 인포그래픽을 그려 줍니다.
+    <b>ChatGPT 앱으로 보내기</b> → 공유 목록에서 ChatGPT 선택. 글자가 틀리면 "글자를 정확히 다시 그려줘"라고 요청하세요.</div>
+  <pre id="gptText" style="white-space:pre-wrap;word-break:break-word;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px;font:inherit;font-size:.82rem;line-height:1.55;max-height:38dvh;overflow:auto;margin-bottom:12px"></pre>
+  <div class="btns" style="flex-direction:column">
+    <button class="btn primary" id="gptShare">🤖 ChatGPT 앱으로 보내기</button>
+    <div class="btns" style="margin-top:0"><button class="btn" id="gptCopy">📋 복사</button><button class="btn" id="gptWeb">🌐 ChatGPT 웹 열기</button></div>
+  </div>
+</div>
+
 <!-- big view -->
 <div class="full" id="bigView">
   <div class="full-hd"><button class="icon-btn" id="bigClose">✕</button><div class="t">크게 보기</div>
@@ -241,6 +256,7 @@ select,input,textarea{font:inherit;color:var(--text)}
 <div class="full" id="viewer">
   <div class="full-hd"><button class="icon-btn" id="viewerClose">✕</button><div class="t" id="viewerTitle"></div>
     <button class="icon-btn" id="viewerCancel" style="display:none" aria-label="취소">⏹</button>
+    <button class="icon-btn" id="viewerGpt" style="display:none" aria-label="GPT 이미지로 만들기">🎨</button>
     <button class="icon-btn" id="viewerSave" aria-label="저장">💾</button>
     <button class="icon-btn" id="viewerShare" aria-label="공유">📤</button></div>
   <div class="full-bd" id="viewerBody"></div>
@@ -1241,11 +1257,77 @@ function fmtDuration(sec) {
 
 async function makeInfographic(transcript, meta, baseName, job) {
   if (!transcript.trim()) throw new Error('요약할 내용이 없습니다');
+  const at = meta.at;
+  // date: shown on the infographic; ymd: same yyyy-MM-dd form the desktop GPT request uses.
+  meta = { ...meta, date: at.toLocaleString('ko-KR'), ymd: `${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())}` };
   const data = await summarizeToInfo(transcript, job);
   if (!job.active()) return;
   const html = renderInfographic(data, meta);
   showHtml(data.title, html, `${baseName}_인포그래픽.html`);
+  viewerData.gptPrompt = buildGptPrompt(data, meta);
+  $('viewerGpt').style.display = '';
+  if (!store.get('bmt.gptHinted', false)) { store.set('bmt.gptHinted', true); toast('🎨 버튼으로 ChatGPT에서 그림 인포그래픽을 만들 수 있습니다', 4500); }
 }
+
+// Request text for ChatGPT's image generation. Image models garble long text, so each
+// section is capped and the exact wording is spelled out to be copied verbatim.
+// Keep in sync with InfographicRenderer.BuildGptImagePrompt (desktop).
+function buildGptPrompt(d, meta) {
+  const s = v => typeof v === 'string' ? v.trim() : '';
+  const L = [
+    '아래 회의 요약 내용으로 세로형(4:5) 인포그래픽 이미지를 한 장 그려 주세요.', '',
+    '[디자인]',
+    '- 깔끔한 비즈니스 인포그래픽. 플랫 일러스트와 아이콘, 남색·파랑 바탕에 주황 포인트 색',
+    '- 맨 위: 제목과 한 줄 요약 / 그 아래: 핵심 수치를 큰 숫자 카드로 / 이어서 핵심 논의, 결정 사항, 액션 아이템(담당·기한), 미결 사항, 다음 단계를 구역별로',
+    '- 자동차 부품·제조업 비즈니스 미팅 분위기의 작은 일러스트(회의, 악수, 공장, 부품 등)를 곁들여 주세요',
+    '- 글자는 반드시 아래 [내용]의 한글·숫자를 철자 그대로 정확하게 써 주세요. 내용을 지어내거나 바꾸지 말고, 읽기 쉬운 큰 글씨로.', '',
+    '[내용]', `제목: ${d.title}`,
+  ];
+  if (d.one_line_summary) L.push(`한 줄 요약: ${d.one_line_summary}`);
+  L.push(`회의 정보: ${[meta.ymd, meta.duration].filter(Boolean).join(' · ')}`);
+  const section = (title, lines) => { if (lines.length) L.push('', `${title}:`, ...lines.map(x => `- ${x}`)); };
+  section('핵심 수치', d.numbers.slice(0, 4).map(n => `${s(n.value)} — ${s(n.label)}`));
+  section('핵심 논의', d.key_points.slice(0, 5).map(p => s(p.text)));
+  section('결정 사항', d.decisions.slice(0, 4).map(p => s(p.text)));
+  section('액션 아이템', d.action_items.slice(0, 5).map(a => `${s(a.task)} (담당: ${s(a.owner) || '미지정'}, 기한: ${s(a.due) || '미정'})`));
+  section('미결 사항', d.open_issues.slice(0, 3).map(s));
+  section('다음 단계', d.next_steps.slice(0, 3).map(s));
+  return L.join('\n');
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch {
+    const t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch {}
+    t.remove(); return ok;
+  }
+}
+
+$('viewerGpt').onclick = () => {
+  if (!viewerData || !viewerData.gptPrompt) return;
+  $('gptText').textContent = viewerData.gptPrompt;
+  openSheet('sheetGpt', true);
+};
+const MANUAL_COPY = '자동 복사에 실패했습니다. 요청문을 길게 눌러 전체 선택 → 복사하세요';
+$('gptCopy').onclick = async () => toast(await copyText($('gptText').textContent) ? '복사했습니다 · ChatGPT 입력창에 붙여넣으세요' : MANUAL_COPY, 4000);
+$('gptShare').onclick = async () => {
+  const text = $('gptText').textContent;
+  const copied = await copyText(text);   // fallback if the chosen app doesn't take shared text
+  if (navigator.share) {
+    try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  toast(copied ? '공유를 지원하지 않아 복사만 했습니다. ChatGPT 앱에 붙여넣으세요' : MANUAL_COPY, 4500);
+};
+$('gptWeb').onclick = async () => {
+  const text = $('gptText').textContent;
+  const copied = await copyText(text);
+  // Korean grows ~9x when URL-encoded; past this the prompt stays clipboard-only.
+  const enc = encodeURIComponent(text), inUrl = enc.length <= 12000;
+  window.open(inUrl ? 'https://chatgpt.com/?q=' + enc : 'https://chatgpt.com/', '_blank', 'noopener');
+  if (!inUrl) toast(copied ? '요청문을 복사했습니다 · ChatGPT 입력창에 붙여넣으세요' : MANUAL_COPY, 4500);
+};
 
 async function infoFromChat() {
   if (!messages.length) return toast('대화가 없습니다');
@@ -1253,7 +1335,7 @@ async function infoFromChat() {
   try {
     const first = new Date(messages[0].at);
     const transcript = messages.map(m => `[${hm(new Date(m.at))}] [${LANGS[m.src].code}] ${m.orig}`).join('\n');
-    await makeInfographic(transcript, { date: first.toLocaleString('ko-KR'), source: settings.title || '현재 대화', duration: '' },
+    await makeInfographic(transcript, { at: first, source: settings.title || '현재 대화', duration: '' },
       `${today()}_${safeName(settings.partnerCo)}`, job);
   } catch (e) { job.fail(e); }
 }
@@ -1267,7 +1349,7 @@ async function infoFromRecording(meta) {
       // Interrupted or failed session: transcribe the stored audio utterance by utterance.
       transcript = await transcribePcmBlocks(recDb.blocks(meta.id), meta.samples / SR, job);
     }
-    await makeInfographic(transcript, { date: new Date(meta.startedAt).toLocaleString('ko-KR'), duration: fmtDuration(meta.samples / SR), source: meta.name + '.wav' }, meta.name, job);
+    await makeInfographic(transcript, { at: new Date(meta.startedAt), duration: fmtDuration(meta.samples / SR), source: meta.name + '.wav' }, meta.name, job);
   } catch (e) { job.fail(e); }
 }
 
@@ -1319,7 +1401,7 @@ async function infoFromFile(file) {
     }
     const transcript = await transcribePcmBlocks(blocks(), audio.duration, job);
     const base = safeName(file.name.replace(/\.[^.]+$/, ''));
-    await makeInfographic(transcript, { date: new Date(file.lastModified || Date.now()).toLocaleString('ko-KR'), duration: fmtDuration(audio.duration), source: file.name }, base, job);
+    await makeInfographic(transcript, { at: new Date(file.lastModified || Date.now()), duration: fmtDuration(audio.duration), source: file.name }, base, job);
   } catch (e) { job.fail(e); }
 }
 
@@ -1327,7 +1409,7 @@ async function infoFromFile(file) {
 let viewerData = null, currentJob = null;
 function openViewer(title) {
   $('viewerTitle').textContent = title; $('viewer').classList.add('on');
-  $('viewerSave').style.display = 'none'; $('viewerShare').style.display = 'none'; $('viewerCancel').style.display = 'none';
+  $('viewerSave').style.display = 'none'; $('viewerShare').style.display = 'none'; $('viewerCancel').style.display = 'none'; $('viewerGpt').style.display = 'none';
 }
 function openJob(title, text) {
   if (currentJob) currentJob.ctl.abort();
@@ -1416,8 +1498,9 @@ async function openRecordings() {
 }
 
 /* ---------------- sheets ---------------- */
-function openSheet(id) { closeSheets(); $('backdrop').classList.add('on'); $(id).classList.add('on'); }
-function closeSheets() { $('backdrop').classList.remove('on'); document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); }
+// top: the sheet opens over a full-screen viewer, so its backdrop must sit above it too.
+function openSheet(id, top = false) { closeSheets(); $('backdrop').classList.toggle('top', top); $('backdrop').classList.add('on'); $(id).classList.add('on'); }
+function closeSheets() { $('backdrop').classList.remove('on', 'top'); document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); }
 $('backdrop').onclick = closeSheets;
 $('btnMenu').onclick = () => openSheet('sheetMenu');
 $('sheetMenu').onclick = e => {
