@@ -70,6 +70,26 @@ select,input,textarea{font:inherit;color:var(--text)}
 .trans{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border2);font-size:1rem;line-height:1.5;color:#cbd5e1;word-break:break-word}
 .trans.pending{color:var(--text3);font-style:italic}
 .trans.fail{color:#fca5a5}
+/* selection mode (long-press a card) */
+.selbar{display:none;position:fixed;left:0;right:0;top:0;z-index:150;padding:calc(6px + var(--safe-t)) 6px 6px;align-items:center;gap:4px;
+  background:#1e1b4b;border-bottom:1px solid rgba(129,140,248,.4)}
+.selbar.on{display:flex}
+.selbar .t{flex:1;font-weight:700;font-size:.95rem;padding-left:4px}
+.selbar .sb{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;font-size:.82rem;font-weight:700}
+.selbar .sb.del{background:var(--danger);border-color:var(--danger);color:#fff}
+.selbar .sb:disabled{opacity:.4}
+.chk{display:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:transparent}
+body.selecting .chk{display:flex}
+body.selecting .star{display:none}
+.msg.sel{outline:2px solid var(--accent2);background:rgba(99,102,241,.14)}
+/* long-press selects the card, not the text (tap the card to see/copy it large) */
+.msg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.msg.sel .chk{background:var(--accent);border-color:var(--accent);color:#fff}
+.undo{position:fixed;left:12px;right:12px;bottom:calc(150px + var(--safe-b));z-index:400;display:none;align-items:center;gap:10px;
+  background:#1e293b;border:1px solid var(--border2);border-radius:12px;padding:10px 12px;font-size:.88rem}
+.undo.on{display:flex}
+.undo span{flex:1}
+.undo button{background:none;border:none;color:var(--accent2);font-weight:800;font-size:.9rem;padding:4px 6px}
 .retry{margin-left:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:2px 10px;font-size:.78rem}
 
 /* dock */
@@ -157,6 +177,13 @@ select,input,textarea{font:inherit;color:var(--text)}
   <button class="icon-btn" id="btnSettings" aria-label="설정">⚙</button>
 </header>
 
+<div class="selbar" id="selBar">
+  <button class="icon-btn" id="selCancel" aria-label="선택 취소">✕</button>
+  <div class="t" id="selCount">0개 선택</div>
+  <button class="sb" id="selAll">전체</button>
+  <button class="sb del" id="selDelete" disabled>🗑 삭제</button>
+</div>
+
 <div class="langbar">
   <div class="langsel our"><label>우리측 언어</label><select id="selOur"></select></div>
   <button class="swap" id="btnSwap" aria-label="언어 바꾸기">⇄</button>
@@ -194,6 +221,7 @@ select,input,textarea{font:inherit;color:var(--text)}
   <button class="menu-item" data-act="infoChat"><span class="mi">📊</span><span>대화로 인포그래픽 만들기<small>현재 대화(실시간 통역 포함)를 한 장으로</small></span></button>
   <button class="menu-item" data-act="recordings"><span class="mi">🎧</span><span>녹음 목록<small>실시간 통역 녹음 저장·공유·인포그래픽</small></span></button>
   <button class="menu-item" data-act="infoFile"><span class="mi">📁</span><span>녹음 파일로 인포그래픽<small>휴대폰에 있는 녹음 파일 선택</small></span></button>
+  <button class="menu-item" data-act="select"><span class="mi">🗑</span><span>문장 선택 삭제<small>잘못 들어간 문장 지우기 (카드를 길게 눌러도 됩니다)</small></span></button>
   <button class="menu-item" data-act="export"><span class="mi">💾</span><span>회의록 저장 / 공유<small>TXT 파일로 내보내기</small></span></button>
   <button class="menu-item" data-act="newMeeting"><span class="mi">🧹</span><span>새 회의 시작<small>대화 비우기 (녹음은 유지)</small></span></button>
 </div>
@@ -262,6 +290,7 @@ select,input,textarea{font:inherit;color:var(--text)}
   <div class="full-bd" id="viewerBody"></div>
 </div>
 
+<div class="undo" id="undoBar"><span id="undoText"></span><button id="undoBtn">실행 취소</button></div>
 <input type="file" id="fileAudio" accept="audio/*,.m4a,.mp3,.wav,.aac" hidden>
 <div class="toast" id="toast"></div>
 
@@ -539,7 +568,8 @@ async function runTranslation(m) {
   while (translating >= 3) await new Promise(r => translateWaiters.push(r));
   translating++;
   try {
-    if (!messages.includes(m)) return;            // meeting was cleared while queued
+    // Deleted or cleared while queued: leave it retryable in case "실행 취소" brings it back.
+    if (!messages.includes(m)) { m.state = 'fail'; m.trans = '번역이 취소되었습니다'; return; }
     m.trans = await translate(m.orig, m.src, m.tgt); m.state = 'done';
   }
   catch (e) { m.trans = e.message || '번역 실패'; m.state = 'fail'; }
@@ -556,7 +586,7 @@ function msgHtml(m) {
   if (m.state === 'pending') trans = `<div class="trans pending">번역 중...</div>`;
   else if (m.state === 'fail') trans = `<div class="trans fail">⚠ ${esc(m.trans)}<button class="retry" data-retry="${m.id}">재시도</button></div>`;
   else trans = m.src === m.tgt ? '' : `<div class="trans">${T.flag} ${esc(m.trans)}</div>`;
-  return `<div class="msg-hd"><span class="who">${S.flag} ${who}</span><span>${time}</span><span class="sp"></span>
+  return `<div class="msg-hd"><span class="chk">✓</span><span class="who">${S.flag} ${who}</span><span>${time}</span><span class="sp"></span>
     <button class="star ${m.star ? 'on' : ''}" data-star="${m.id}" aria-label="중요">★</button></div>
     <div class="msg-bd" data-big="${m.id}"><div class="orig">${esc(m.orig)}</div>${trans}</div>`;
 }
@@ -569,7 +599,8 @@ function renderMessage(m, append) {
     const empty = chat.querySelector('.empty'); if (empty) empty.remove();
     el = document.createElement('div'); el.id = 'm-' + m.id; chat.appendChild(el);
   }
-  el.className = 'msg ' + m.speaker;
+  el.className = 'msg ' + m.speaker + (selecting && selected.has(m.id) ? ' sel' : '');
+  el.dataset.id = m.id;
   el.innerHTML = msgHtml(m);
   if (append || nearBottom) chat.scrollTop = chat.scrollHeight;
 }
@@ -587,7 +618,83 @@ function renderAll() {
   chat.scrollTop = chat.scrollHeight;
 }
 
+/* ---------------- select & delete (long-press a card) ---------------- */
+let selecting = false;
+const selected = new Set();
+// Time until which a click is ignored: only the click that ends a long-press, never a later tap.
+let suppressClickUntil = 0;
+
+function enterSelect(firstId) {
+  selecting = true; selected.clear();
+  if (firstId) selected.add(firstId);
+  document.body.classList.add('selecting'); $('selBar').classList.add('on');
+  refreshSelection();
+}
+function exitSelect() {
+  selecting = false; selected.clear();
+  document.body.classList.remove('selecting'); $('selBar').classList.remove('on');
+  refreshSelection();
+}
+function refreshSelection() {
+  document.querySelectorAll('#chat .msg').forEach(el => el.classList.toggle('sel', selecting && selected.has(el.dataset.id)));
+  $('selCount').textContent = `${selected.size}개 선택`;
+  $('selDelete').disabled = selected.size === 0;
+}
+$('selCancel').onclick = exitSelect;
+$('selAll').onclick = () => {
+  if (selected.size === messages.length) selected.clear(); else messages.forEach(m => selected.add(m.id));
+  refreshSelection();
+};
+
+let undoState = null, undoTimer = null;
+$('selDelete').onclick = () => {
+  const removed = [];
+  messages.forEach((m, i) => { if (selected.has(m.id)) removed.push({ m, i }); });
+  if (!removed.length) return;
+  messages = messages.filter(m => !selected.has(m.id));
+  saveMessages(); exitSelect(); renderAll();
+  undoState = removed;
+  $('undoText').textContent = `${removed.length}개 문장을 삭제했습니다`;
+  $('undoBar').classList.add('on');
+  clearTimeout(undoTimer); undoTimer = setTimeout(() => { $('undoBar').classList.remove('on'); undoState = null; }, 7000);
+};
+$('undoBtn').onclick = () => {
+  if (!undoState) return;
+  // Re-insert at the original positions (ascending, so earlier inserts don't shift later ones).
+  for (const { m, i } of undoState) messages.splice(Math.min(i, messages.length), 0, m);
+  undoState = null; clearTimeout(undoTimer); $('undoBar').classList.remove('on');
+  saveMessages(); renderAll(); toast('되돌렸습니다');
+};
+
+// Long-press (~0.5 s) on a card starts selection; moving the finger (scrolling) cancels it.
+let pressTimer = null, pressStart = null;
+$('chat').addEventListener('pointerdown', e => {
+  const card = e.target.closest('.msg'); if (!card || selecting) return;
+  pressStart = { x: e.clientX, y: e.clientY };
+  pressTimer = setTimeout(() => {
+    // Ignore clicks until this finger lifts (+700 ms then), however long it is held.
+    pressTimer = null; suppressClickUntil = Infinity;
+    if (navigator.vibrate) navigator.vibrate(30);
+    enterSelect(card.dataset.id);
+  }, 500);
+});
+const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; };
+$('chat').addEventListener('pointermove', e => { if (pressTimer && pressStart && Math.hypot(e.clientX - pressStart.x, e.clientY - pressStart.y) > 10) cancelPress(); });
+$('chat').addEventListener('pointerup', () => { cancelPress(); if (suppressClickUntil === Infinity) suppressClickUntil = Date.now() + 700; });
+$('chat').addEventListener('pointerleave', cancelPress);
+// A cancelled gesture produces no click, so nothing should stay suppressed.
+$('chat').addEventListener('pointercancel', () => { cancelPress(); suppressClickUntil = 0; });
+$('chat').addEventListener('contextmenu', e => { if (e.target.closest('.msg')) e.preventDefault(); });
+
 $('chat').addEventListener('click', e => {
+  if (Date.now() < suppressClickUntil) { suppressClickUntil = 0; return; }   // the click that ends a long-press
+  if (selecting) {
+    const card = e.target.closest('.msg'); if (!card) return;
+    const id = card.dataset.id;
+    if (selected.has(id)) selected.delete(id); else selected.add(id);
+    refreshSelection();
+    return;
+  }
   const r = e.target.closest('[data-retry]'); if (r) { const m = messages.find(x => x.id === r.dataset.retry); m && runTranslation(m); return; }
   const s = e.target.closest('[data-star]'); if (s) { const m = messages.find(x => x.id === s.dataset.star); if (m) { m.star = !m.star; renderMessage(m); saveMessages(); } return; }
   const b = e.target.closest('[data-big]'); if (b) { const m = messages.find(x => x.id === b.dataset.big); m && openBig(m); }
@@ -1507,6 +1614,7 @@ $('sheetMenu').onclick = e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act; closeSheets();
   if (act === 'install') promptInstall();
+  else if (act === 'select') { if (!messages.length) toast('지울 문장이 없습니다'); else enterSelect(); }
   else if (act === 'summary') doSummary();
   else if (act === 'infoChat') infoFromChat();
   else if (act === 'recordings') openRecordings();
@@ -1514,7 +1622,10 @@ $('sheetMenu').onclick = e => {
   else if (act === 'export') exportLog();
   else if (act === 'newMeeting') {
     if (live) return toast('실시간 통역을 먼저 중지하세요');
-    if (messages.length && confirm('대화를 모두 비울까요? (녹음 목록은 유지됩니다)\n먼저 회의록을 저장하려면 취소하세요.')) { messages = []; saveMessages(); renderAll(); }
+    // Confirm only when there is something to lose; the reset itself always runs so a pending
+    // "실행 취소" can't restore lines from the previous meeting.
+    if (messages.length && !confirm('대화를 모두 비울까요? (녹음 목록은 유지됩니다)\n먼저 회의록을 저장하려면 취소하세요.')) return;
+    messages = []; undoState = null; clearTimeout(undoTimer); $('undoBar').classList.remove('on'); exitSelect(); saveMessages(); renderAll();
   }
 };
 $('fileAudio').onchange = e => { const f = e.target.files && e.target.files[0]; if (f) infoFromFile(f); };

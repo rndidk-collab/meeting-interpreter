@@ -1,7 +1,7 @@
 // Service worker for the installed app: makes it installable and lets the screen open on a
 // weak connection. The page is fetched network-first so a deploy shows up on the next open;
 // the cached copy is only a fallback. API calls (other origins) are never touched.
-const CACHE = 'bmt-20261112084843';
+const CACHE = 'bmt-20261112085639';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
