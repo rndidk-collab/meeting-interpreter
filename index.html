@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<title>미팅 통역</title>
+<title>미팅 통역 · GPT 인포그래픽 (2026.11.12)</title>
 <style>
 :root{
   --bg:#07101c; --bg2:#0d1a2d; --surface:rgba(255,255,255,0.045); --surface2:rgba(255,255,255,0.08);
@@ -53,6 +53,12 @@ select,input,textarea{font:inherit;color:var(--text)}
 .livebar .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @keyframes blink{50%{opacity:.25}}
 
+/* microphone diagnostics */
+.mic-alert{display:none;margin:8px 12px 0;padding:10px 12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fde68a;border-radius:12px;font-size:.77rem;line-height:1.5;flex-shrink:0}
+.mic-alert.on{display:block}
+.mic-test-result{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.79rem;color:var(--text2);line-height:1.6;margin-top:8px;white-space:pre-wrap}
+.mic-test-result.success{color:var(--success);border-color:rgba(52,211,153,.4)}
+.mic-test-result.fail{color:#fda4af;border-color:rgba(239,68,68,.4)}
 /* chat */
 .chat{flex:1;overflow-y:auto;padding:12px 12px 16px;-webkit-overflow-scrolling:touch}
 .empty{color:var(--text3);text-align:center;margin-top:18vh;line-height:1.8;font-size:.9rem;padding:0 20px}
@@ -70,26 +76,6 @@ select,input,textarea{font:inherit;color:var(--text)}
 .trans{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border2);font-size:1rem;line-height:1.5;color:#cbd5e1;word-break:break-word}
 .trans.pending{color:var(--text3);font-style:italic}
 .trans.fail{color:#fca5a5}
-/* selection mode (long-press a card) */
-.selbar{display:none;position:fixed;left:0;right:0;top:0;z-index:150;padding:calc(6px + var(--safe-t)) 6px 6px;align-items:center;gap:4px;
-  background:#1e1b4b;border-bottom:1px solid rgba(129,140,248,.4)}
-.selbar.on{display:flex}
-.selbar .t{flex:1;font-weight:700;font-size:.95rem;padding-left:4px}
-.selbar .sb{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;font-size:.82rem;font-weight:700}
-.selbar .sb.del{background:var(--danger);border-color:var(--danger);color:#fff}
-.selbar .sb:disabled{opacity:.4}
-.chk{display:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:transparent}
-body.selecting .chk{display:flex}
-body.selecting .star{display:none}
-.msg.sel{outline:2px solid var(--accent2);background:rgba(99,102,241,.14)}
-/* long-press selects the card, not the text (tap the card to see/copy it large) */
-.msg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.msg.sel .chk{background:var(--accent);border-color:var(--accent);color:#fff}
-.undo{position:fixed;left:12px;right:12px;bottom:calc(150px + var(--safe-b));z-index:400;display:none;align-items:center;gap:10px;
-  background:#1e293b;border:1px solid var(--border2);border-radius:12px;padding:10px 12px;font-size:.88rem}
-.undo.on{display:flex}
-.undo span{flex:1}
-.undo button{background:none;border:none;color:var(--accent2);font-weight:800;font-size:.9rem;padding:4px 6px}
 .retry{margin-left:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:2px 10px;font-size:.78rem}
 
 /* dock */
@@ -118,7 +104,6 @@ body.selecting .star{display:none}
 .sheet{position:fixed;left:0;right:0;bottom:0;background:#0f1b2e;border-radius:20px 20px 0 0;border-top:1px solid var(--border2);
   padding:10px 14px calc(16px + var(--safe-b));z-index:210;transform:translateY(105%);transition:transform .22s ease;max-height:88dvh;overflow-y:auto}
 .sheet.on{transform:none}
-.sheet.top{z-index:330} .backdrop.top{z-index:320}
 .grab{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:2px auto 10px}
 .sheet h3{font-size:1rem;margin:4px 2px 12px}
 .menu-item{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;text-align:left;padding:13px 6px;
@@ -163,6 +148,23 @@ body.selecting .star{display:none}
 .rec-item .info small{display:block;color:var(--text3);font-size:.72rem}
 .rec-item button{background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:7px 9px;font-size:.78rem}
 .warnbox{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fde68a;border-radius:12px;padding:10px 12px;font-size:.78rem;line-height:1.55;margin-bottom:12px}
+
+/* OpenAI output panel */
+.gpt-view{min-height:100%;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px;background:#101827}
+.gpt-view img{display:block;max-width:100%;width:auto;max-height:calc(100dvh - 155px);object-fit:contain;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.4)}
+.gpt-view .gpt-note{font-size:12px;color:#9ca3af;line-height:1.55;text-align:center}
+
+/* GitHub production features (select/delete, PWA and ChatGPT share panel) */
+.selbar{display:none;position:fixed;left:0;right:0;top:0;z-index:150;padding:calc(6px + var(--safe-t)) 6px 6px;align-items:center;gap:4px;background:#1e1b4b;border-bottom:1px solid rgba(129,140,248,.4)}
+.selbar.on{display:flex}.selbar .t{flex:1;font-weight:700;font-size:.95rem;padding-left:4px}
+.selbar .sb{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;font-size:.82rem;font-weight:700}
+.selbar .sb.del{background:var(--danger);border-color:var(--danger);color:#fff}.selbar .sb:disabled{opacity:.4}
+.chk{display:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:transparent}
+body.selecting .chk{display:flex}body.selecting .star{display:none}.msg.sel{outline:2px solid var(--accent2);background:rgba(99,102,241,.14)}
+.msg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.msg.sel .chk{background:var(--accent);border-color:var(--accent);color:#fff}
+.undo{position:fixed;left:12px;right:12px;bottom:calc(150px + var(--safe-b));z-index:400;display:none;align-items:center;gap:10px;background:#1e293b;border:1px solid var(--border2);border-radius:12px;padding:10px 12px;font-size:.88rem}
+.undo.on{display:flex}.undo span{flex:1}.undo button{background:none;border:none;color:var(--accent2);font-weight:800;font-size:.9rem;padding:4px 6px}
+.sheet.top{z-index:330}.backdrop.top{z-index:320}
 </style>
 </head>
 <body>
@@ -177,13 +179,6 @@ body.selecting .star{display:none}
   <button class="icon-btn" id="btnSettings" aria-label="설정">⚙</button>
 </header>
 
-<div class="selbar" id="selBar">
-  <button class="icon-btn" id="selCancel" aria-label="선택 취소">✕</button>
-  <div class="t" id="selCount">0개 선택</div>
-  <button class="sb" id="selAll">전체</button>
-  <button class="sb del" id="selDelete" disabled>🗑 삭제</button>
-</div>
-
 <div class="langbar">
   <div class="langsel our"><label>우리측 언어</label><select id="selOur"></select></div>
   <button class="swap" id="btnSwap" aria-label="언어 바꾸기">⇄</button>
@@ -196,6 +191,13 @@ body.selecting .star{display:none}
   </select>
 </div>
 
+<div class="selbar" id="selBar">
+  <button class="icon-btn" id="selCancel" aria-label="선택 취소">✕</button>
+  <div class="t" id="selCount">0개 선택</div>
+  <button class="sb" id="selAll">전체</button>
+  <button class="sb del" id="selDelete" disabled>삭제</button>
+</div>
+<div class="mic-alert" id="micAlert" role="alert"></div>
 <main class="chat" id="chat"></main>
 
 <footer class="dock">
@@ -216,12 +218,14 @@ body.selecting .star{display:none}
 <!-- menu -->
 <div class="sheet" id="sheetMenu">
   <div class="grab"></div>
-  <button class="menu-item" data-act="install" id="menuInstall" style="display:none"><span class="mi">📲</span><span>앱으로 설치<small>홈 화면 아이콘으로 바로 열기 (주소창 없이)</small></span></button>
+  <button class="menu-item" data-act="install" id="menuInstall" style="display:none"><span class="mi">📲</span><span>앱으로 설치<small>홈 화면 아이콘으로 바로 열기</small></span></button>
   <button class="menu-item" data-act="summary"><span class="mi">📝</span><span>회의 요약<small>지금까지 대화를 9개 항목으로 요약</small></span></button>
   <button class="menu-item" data-act="infoChat"><span class="mi">📊</span><span>대화로 인포그래픽 만들기<small>현재 대화(실시간 통역 포함)를 한 장으로</small></span></button>
+  <button class="menu-item" data-act="infoGptChat"><span class="mi">AI</span><span>GPT &#xC774;&#xBBF8;&#xC9C0; &#xC778;&#xD3EC;&#xADF8;&#xB798;&#xD53D;<small>OpenAI GPT Image / PNG 16:9</small></span></button>
   <button class="menu-item" data-act="recordings"><span class="mi">🎧</span><span>녹음 목록<small>실시간 통역 녹음 저장·공유·인포그래픽</small></span></button>
   <button class="menu-item" data-act="infoFile"><span class="mi">📁</span><span>녹음 파일로 인포그래픽<small>휴대폰에 있는 녹음 파일 선택</small></span></button>
-  <button class="menu-item" data-act="select"><span class="mi">🗑</span><span>문장 선택 삭제<small>잘못 들어간 문장 지우기 (카드를 길게 눌러도 됩니다)</small></span></button>
+  <button class="menu-item" data-act="infoGptFile"><span class="mi">AI</span><span>녹음 파일로 GPT 이미지 만들기<small>음성 인식 후 GPT 이미지 PNG</small></span></button>
+  <button class="menu-item" data-act="select"><span class="mi">🗑</span><span>문장 선택 삭제<small>카드를 길게 눌러 선택할 수도 있습니다</small></span></button>
   <button class="menu-item" data-act="export"><span class="mi">💾</span><span>회의록 저장 / 공유<small>TXT 파일로 내보내기</small></span></button>
   <button class="menu-item" data-act="newMeeting"><span class="mi">🧹</span><span>새 회의 시작<small>대화 비우기 (녹음은 유지)</small></span></button>
 </div>
@@ -231,9 +235,39 @@ body.selecting .star{display:none}
   <div class="grab"></div>
   <h3>설정</h3>
   <div class="warnbox" id="ctxWarn" style="display:none"></div>
+  <div class="field"><label>마이크 자체 테스트</label>
+    <button class="btn" id="btnMicTest" type="button">🎤 마이크 권한·입력 테스트 (2초)</button>
+    <div class="hint">API 키 없이 휴대폰 마이크 접근 및 실제 소리 입력을 검사합니다. 먼저 말을 해 보세요.</div>
+    <div id="micTestResult" class="mic-test-result" aria-live="polite">테스트 전</div>
+  </div>
   <div class="field"><label>Groq API Key</label><input id="setKey" type="password" autocomplete="off" placeholder="gsk_...">
     <div class="hint">이 휴대폰 브라우저에만 저장됩니다. console.groq.com 에서 발급.</div></div>
   <div class="btns" style="margin:-4px 0 14px"><button class="btn" id="btnTest"><span class="led" id="led"></span>API 연결 테스트</button></div>
+
+  <div class="field" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border2)">
+    <label style="font-size:.9rem;color:#dbeafe">OpenAI 이미지 자동 생성</label>
+    <div class="hint">이미지 생성은 OpenAI API, 기존 통역은 Groq를 사용합니다. API 요금은 별도 부과됩니다.</div>
+  </div>
+  <div class="field"><label>Connection mode (GitHub Pages: use HTTPS proxy in production)</label>
+    <select id="oaMode"><option value="direct">개인 테스트(임시 API 키, 이 탭에서만)</option>
+    <option value="proxy">보안 서버(권장, API 키는 서버에 보관)</option></select>
+    <div class="hint">공개된 GitHub Pages 운영용은 보안 서버를 권장합니다. 테스트 모드 키는 페이지에 저장되지 않습니다.</div>
+  </div>
+  <div class="field" id="oaDirectBlock"><label>OpenAI API 키 (임시 사용, 저장 안 함)</label>
+    <input id="oaKey" type="password" autocomplete="off" placeholder="sk-...">
+    <div class="warnbox" style="margin-top:6px">본인 기기에서만 테스트하세요. API 키를 소스코드나 GitHub에 절대 올리지 마세요.</div>
+  </div>
+  <div id="oaProxyBlock" style="display:none">
+    <div class="field"><label>Server API route</label><input id="oaProxyBase" placeholder="https://your-proxy.example.com/api/openai">
+      <div class="hint">GitHub Pages에서는 별도 HTTPS 프록시 주소를 입력하세요. 같은 서버에서 호스팅하면 /api/openai.</div></div>
+    <div class="field"><label>Server access token (temporary, if configured)</label><input id="oaToken" type="password" autocomplete="off" placeholder="APP_ACCESS_TOKEN"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>이미지 모델</label><select id="oaImageModel"><option value="gpt-image-2">gpt-image-2</option><option value="gpt-image-2.5-flare">gpt-image-2.5-flare</option><option value="gpt-image-2.5-sunburst">gpt-image-2.5-sunburst</option></select></div>
+    <div class="field"><label>이미지 화질</label><select id="oaQuality"><option value="low">low (draft)</option><option value="medium">medium</option><option value="high">high</option></select></div>
+  </div>
+  <div class="field"><label>이미지 크기</label><select id="oaSize"><option value="1536x864">1536 x 864 (16:9)</option><option value="1536x1024">1536 x 1024 (3:2)</option><option value="1024x1536">1024 x 1536 (portrait)</option></select></div>
+  <div class="btns" style="margin:-2px 0 14px"><button class="btn" id="oaTest" type="button">OpenAI 연결 확인</button></div>
   <div class="field"><label>회의 제목</label><input id="setTitle" placeholder="예: EV 배터리 트레이 협의"></div>
   <div class="row2">
     <div class="field"><label>상대 회사</label><input id="setPartnerCo"></div>
@@ -259,17 +293,15 @@ body.selecting .star{display:none}
   <div id="recList"></div>
 </div>
 
-<!-- ChatGPT image request (shown above the viewer) -->
+<!-- Existing GitHub feature: share the source-verified image prompt into ChatGPT -->
 <div class="sheet top" id="sheetGpt">
   <div class="grab"></div>
   <h3>🎨 ChatGPT로 이미지 인포그래픽 만들기</h3>
-  <div class="warnbox" style="background:rgba(99,102,241,.12);border-color:rgba(129,140,248,.35);color:#c7d2fe">
-    요청문을 ChatGPT에 보내면 그림으로 된 인포그래픽을 그려 줍니다.
-    <b>ChatGPT 앱으로 보내기</b> → 공유 목록에서 ChatGPT 선택. 글자가 틀리면 "글자를 정확히 다시 그려줘"라고 요청하세요.</div>
+  <div class="warnbox" style="background:rgba(99,102,241,.12);border-color:rgba(129,140,248,.35);color:#c7d2fe">요청문을 ChatGPT에 보내 그림 인포그래픽으로 제작할 수 있습니다.</div>
   <pre id="gptText" style="white-space:pre-wrap;word-break:break-word;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px;font:inherit;font-size:.82rem;line-height:1.55;max-height:38dvh;overflow:auto;margin-bottom:12px"></pre>
   <div class="btns" style="flex-direction:column">
-    <button class="btn primary" id="gptShare">🤖 ChatGPT 앱으로 보내기</button>
-    <div class="btns" style="margin-top:0"><button class="btn" id="gptCopy">📋 복사</button><button class="btn" id="gptWeb">🌐 ChatGPT 웹 열기</button></div>
+    <button class="btn primary" id="gptShare">ChatGPT 앱으로 보내기</button>
+    <div class="btns" style="margin-top:0"><button class="btn" id="gptCopy">복사</button><button class="btn" id="gptWeb">ChatGPT 웹 열기</button></div>
   </div>
 </div>
 
@@ -284,15 +316,15 @@ body.selecting .star{display:none}
 <div class="full" id="viewer">
   <div class="full-hd"><button class="icon-btn" id="viewerClose">✕</button><div class="t" id="viewerTitle"></div>
     <button class="icon-btn" id="viewerCancel" style="display:none" aria-label="취소">⏹</button>
-    <button class="icon-btn" id="viewerGpt" style="display:none" aria-label="GPT 이미지로 만들기">🎨</button>
+    <button class="icon-btn" id="viewerGpt" style="display:none" aria-label="ChatGPT로 보내기">🎨</button>
     <button class="icon-btn" id="viewerSave" aria-label="저장">💾</button>
     <button class="icon-btn" id="viewerShare" aria-label="공유">📤</button></div>
   <div class="full-bd" id="viewerBody"></div>
 </div>
 
-<div class="undo" id="undoBar"><span id="undoText"></span><button id="undoBtn">실행 취소</button></div>
 <input type="file" id="fileAudio" accept="audio/*,.m4a,.mp3,.wav,.aac" hidden>
 <div class="toast" id="toast"></div>
+<div class="undo" id="undoBar"><span id="undoText"></span><button id="undoBtn">실행 취소</button></div>
 
 <script>
 'use strict';
@@ -334,6 +366,17 @@ const DEFAULT_SETTINGS = {
   autoSend: true, liveMode: 'bi', glossaryCsv: null,
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, store.get('bmt.settings', {}));
+
+/* ---------------- OpenAI (separate from Groq) ---------------- */
+const OPENAI_DEFAULTS = {
+  mode: 'direct', textModel: 'gpt-4.1-mini', imageModel: 'gpt-image-2',
+  quality: 'medium', size: '1536x864', proxyBase: '/api/openai'
+};
+let oaConfig = Object.assign({}, OPENAI_DEFAULTS, store.get('bmt.openai.config', {}));
+let oaSessionKey = '';
+let oaSessionToken = '';
+function oaSaveConfig() { store.set('bmt.openai.config', oaConfig); }
+
 let messages = store.get('bmt.messages', []);
 let inputSide = 'our';
 
@@ -568,8 +611,7 @@ async function runTranslation(m) {
   while (translating >= 3) await new Promise(r => translateWaiters.push(r));
   translating++;
   try {
-    // Deleted or cleared while queued: leave it retryable in case "실행 취소" brings it back.
-    if (!messages.includes(m)) { m.state = 'fail'; m.trans = '번역이 취소되었습니다'; return; }
+    if (!messages.includes(m)) return;            // meeting was cleared while queued
     m.trans = await translate(m.orig, m.src, m.tgt); m.state = 'done';
   }
   catch (e) { m.trans = e.message || '번역 실패'; m.state = 'fail'; }
@@ -618,12 +660,11 @@ function renderAll() {
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* ---------------- select & delete (long-press a card) ---------------- */
+
+/* ---------------- Select/delete/undo, preserved from current GitHub app ---------------- */
 let selecting = false;
 const selected = new Set();
-// Time until which a click is ignored: only the click that ends a long-press, never a later tap.
 let suppressClickUntil = 0;
-
 function enterSelect(firstId) {
   selecting = true; selected.clear();
   if (firstId) selected.add(firstId);
@@ -645,56 +686,44 @@ $('selAll').onclick = () => {
   if (selected.size === messages.length) selected.clear(); else messages.forEach(m => selected.add(m.id));
   refreshSelection();
 };
-
 let undoState = null, undoTimer = null;
 $('selDelete').onclick = () => {
   const removed = [];
-  messages.forEach((m, i) => { if (selected.has(m.id)) removed.push({ m, i }); });
+  messages.forEach((m, i) => { if (selected.has(m.id)) removed.push({m,i}); });
   if (!removed.length) return;
   messages = messages.filter(m => !selected.has(m.id));
   saveMessages(); exitSelect(); renderAll();
   undoState = removed;
   $('undoText').textContent = `${removed.length}개 문장을 삭제했습니다`;
   $('undoBar').classList.add('on');
-  clearTimeout(undoTimer); undoTimer = setTimeout(() => { $('undoBar').classList.remove('on'); undoState = null; }, 7000);
+  clearTimeout(undoTimer); undoTimer = setTimeout(() => {$('undoBar').classList.remove('on');undoState=null;},7000);
 };
 $('undoBtn').onclick = () => {
   if (!undoState) return;
-  // Re-insert at the original positions (ascending, so earlier inserts don't shift later ones).
-  for (const { m, i } of undoState) messages.splice(Math.min(i, messages.length), 0, m);
-  undoState = null; clearTimeout(undoTimer); $('undoBar').classList.remove('on');
-  saveMessages(); renderAll(); toast('되돌렸습니다');
+  for (const {m,i} of undoState) messages.splice(Math.min(i,messages.length),0,m);
+  undoState=null; clearTimeout(undoTimer); $('undoBar').classList.remove('on');
+  saveMessages();renderAll();toast('되돌렸습니다');
 };
-
-// Long-press (~0.5 s) on a card starts selection; moving the finger (scrolling) cancels it.
-let pressTimer = null, pressStart = null;
+let pressTimer=null, pressStart=null;
 $('chat').addEventListener('pointerdown', e => {
-  const card = e.target.closest('.msg'); if (!card || selecting) return;
-  pressStart = { x: e.clientX, y: e.clientY };
-  pressTimer = setTimeout(() => {
-    // Ignore clicks until this finger lifts (+700 ms then), however long it is held.
-    pressTimer = null; suppressClickUntil = Infinity;
-    if (navigator.vibrate) navigator.vibrate(30);
+  const card=e.target.closest('.msg'); if(!card||selecting) return;
+  pressStart={x:e.clientX,y:e.clientY};
+  pressTimer=setTimeout(()=>{
+    pressTimer=null;suppressClickUntil=Infinity;
+    if(navigator.vibrate) navigator.vibrate(30);
     enterSelect(card.dataset.id);
-  }, 500);
+  },500);
 });
-const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; };
-$('chat').addEventListener('pointermove', e => { if (pressTimer && pressStart && Math.hypot(e.clientX - pressStart.x, e.clientY - pressStart.y) > 10) cancelPress(); });
-$('chat').addEventListener('pointerup', () => { cancelPress(); if (suppressClickUntil === Infinity) suppressClickUntil = Date.now() + 700; });
-$('chat').addEventListener('pointerleave', cancelPress);
-// A cancelled gesture produces no click, so nothing should stay suppressed.
-$('chat').addEventListener('pointercancel', () => { cancelPress(); suppressClickUntil = 0; });
-$('chat').addEventListener('contextmenu', e => { if (e.target.closest('.msg')) e.preventDefault(); });
+const cancelPress=()=>{clearTimeout(pressTimer);pressTimer=null;};
+$('chat').addEventListener('pointermove',e=>{if(pressTimer&&pressStart&&Math.hypot(e.clientX-pressStart.x,e.clientY-pressStart.y)>10)cancelPress();});
+$('chat').addEventListener('pointerup',()=>{cancelPress();if(suppressClickUntil===Infinity)suppressClickUntil=Date.now()+700;});
+$('chat').addEventListener('pointerleave',cancelPress);
+$('chat').addEventListener('pointercancel',()=>{cancelPress();suppressClickUntil=0;});
+$('chat').addEventListener('contextmenu',e=>{if(e.target.closest('.msg'))e.preventDefault();});
 
 $('chat').addEventListener('click', e => {
-  if (Date.now() < suppressClickUntil) { suppressClickUntil = 0; return; }   // the click that ends a long-press
-  if (selecting) {
-    const card = e.target.closest('.msg'); if (!card) return;
-    const id = card.dataset.id;
-    if (selected.has(id)) selected.delete(id); else selected.add(id);
-    refreshSelection();
-    return;
-  }
+  if (Date.now()<suppressClickUntil) {suppressClickUntil=0;return;}
+  if (selecting) { const card=e.target.closest('.msg');if(!card)return;const id=card.dataset.id;if(selected.has(id))selected.delete(id);else selected.add(id);refreshSelection();return; }
   const r = e.target.closest('[data-retry]'); if (r) { const m = messages.find(x => x.id === r.dataset.retry); m && runTranslation(m); return; }
   const s = e.target.closest('[data-star]'); if (s) { const m = messages.find(x => x.id === s.dataset.star); if (m) { m.star = !m.star; renderMessage(m); saveMessages(); } return; }
   const b = e.target.closest('[data-big]'); if (b) { const m = messages.find(x => x.id === b.dataset.big); m && openBig(m); }
@@ -819,18 +848,26 @@ class Mic {
   // Must be called from a tap handler: iOS only lets an AudioContext start in a user gesture.
   async start() {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
-      throw new Error('이 브라우저에서는 마이크를 쓸 수 없습니다. https 주소로 열었는지 확인하세요.');
+    const problem = micEnvironmentIssue();
+    if (problem) throw new Error(problem);
+    if (!AC) throw new Error('이 브라우저는 Web Audio를 지원하지 않습니다. Chrome 또는 Safari에서 여세요.');
     this.ctx = new AC();
-    const resume = this.ctx.resume();
+    // Resume the audio context in the original tap handler before awaiting permissions.
+    const resume = this.ctx.resume().catch(() => {});
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     } catch (e) {
-      this.ctx.close();
-      throw new Error(e && e.name === 'NotAllowedError' ? '마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크를 허용하세요.' : '마이크를 시작할 수 없습니다: ' + (e && e.message || e));
+      await this.ctx.close().catch(() => {});
+      this.ctx = null;
+      throw new Error(micErrorText(e));
     }
     // Stopped while the permission prompt was open: don't leave the mic running.
-    if (this.stopped) { this.stream.getTracks().forEach(t => t.stop()); this.ctx.close().catch(() => {}); throw new Aborted(); }
+    if (this.stopped) {
+      this.stream.getTracks().forEach(t => t.stop());
+      if (this.ctx) this.ctx.close().catch(() => {});
+      this.stream = null;
+      throw new Aborted();
+    }
     await resume.catch(() => {});
     if (this.ctx.state !== 'running') { try { await this.ctx.resume(); } catch {} }
     if (this.ctx.state !== 'running') { this.stop(); throw new Error('오디오를 시작하지 못했습니다. 버튼을 다시 눌러 주세요.'); }
@@ -852,6 +889,8 @@ class Mic {
         worklet = true;
       } catch { worklet = false; }
     }
+    // The user may tap Stop while Worklet loading is still in progress.
+    if (this.stopped || !this.ctx) throw new Aborted();
     if (!worklet) {
       this.node = this.ctx.createScriptProcessor(4096, 1, 1);
       this.node.onaudioprocess = e => handle(e.inputBuffer.getChannelData(0));
@@ -873,6 +912,79 @@ class Mic {
     this.stream = this.ctx = this.node = this.src = null;
   }
 }
+
+/* ---------------- microphone permission and capture diagnostics ---------------- */
+function micEnvironmentIssue() {
+  if (!window.isSecureContext) {
+    return '마이크 차단: 현재 열기 방식(' + location.protocol + ')이 보안 연결이 아닙니다. HTTPS 주소의 Chrome에서 열어야 합니다.';
+  }
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    return '마이크 API를 사용할 수 없습니다. ChatGPT/메신저/파일 미리보기가 아닌 Chrome 브라우저의 HTTPS 페이지로 열어 주세요.';
+  }
+  return '';
+}
+function micErrorText(e) {
+  const name = e && e.name || '';
+  const detail = e && e.message ? ' (' + e.message + ')' : '';
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError')
+    return '마이크 권한이 차단되었습니다. Android 설정 → 앱 → Chrome → 권한 → 마이크를 허용하고, Chrome 주소창의 사이트 권한도 확인하세요.' + detail;
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError')
+    return '사용할 수 있는 마이크를 찾지 못했습니다. 휴대폰 마이크/연결된 블루투스 기기를 확인하세요.' + detail;
+  if (name === 'NotReadableError' || name === 'TrackStartError' || name === 'AbortError')
+    return '다른 앱 사용 또는 기기 오류로 마이크를 열지 못했습니다. 통화/녹음 앱을 종료하고 다시 시도하세요.' + detail;
+  if (name === 'OverconstrainedError')
+    return '마이크 설정을 지원하지 않습니다. 기기의 브라우저를 업데이트해 주세요.' + detail;
+  return '마이크를 시작하지 못했습니다: ' + (name || '알 수 없음') + detail;
+}
+function updateMicEnvironment() {
+  const warning = micEnvironmentIssue();
+  const el = $('micAlert');
+  el.classList.toggle('on', !!warning);
+  el.textContent = warning;
+  return warning;
+}
+$('btnMicTest').onclick = async () => {
+  const btn = $('btnMicTest'), result = $('micTestResult');
+  const fail = m => { result.className = 'mic-test-result fail'; result.textContent = '실패: ' + m; };
+  const issue = updateMicEnvironment();
+  if (issue) return fail(issue);
+  if (ptt || live) return fail('진행 중인 녹음/통역을 먼저 중지하세요.');
+  btn.disabled = true;
+  result.className = 'mic-test-result';
+  result.textContent = '권한을 요청하고 있습니다. 허용한 뒤 소리 내어 말씀하세요.';
+  let stream = null, ctx = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) throw new Error('Web Audio 기능을 지원하지 않는 브라우저입니다.');
+    ctx = new AC();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    source.connect(analyser);
+    await ctx.resume();
+    const data = new Float32Array(analyser.fftSize);
+    let peak = 0;
+    const endsAt = performance.now() + 2000;
+    while (performance.now() < endsAt) {
+      analyser.getFloatTimeDomainData(data);
+      let power = 0;
+      for (let i = 0; i < data.length; i++) power += data[i] * data[i];
+      peak = Math.max(peak, Math.sqrt(power / data.length));
+      result.textContent = '마이크 연결 성공 — 음성 확인 중... (최대 레벨 ' + Math.round(peak * 100) + '%)';
+      await sleep(100);
+    }
+    result.className = 'mic-test-result success';
+    result.textContent = peak > 0.008
+      ? '마이크 정상: 권한 허용 + 음성 신호 수신 성공 (' + Math.round(peak * 100) + '%). 이제 음성 버튼을 사용하세요.'
+      : '권한 및 마이크 연결은 성공했습니다. 다만 2초간 소리가 거의 감지되지 않았습니다. 휴대폰 마이크 음소거/연결 장치를 확인하고 큰 소리로 다시 테스트하세요.';
+  } catch (e) { fail(micErrorText(e)); }
+  finally {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (ctx) await ctx.close().catch(() => {});
+    btn.disabled = false;
+  }
+};
 
 /* ---------------- screen wake lock (a locked phone stops the mic) ---------------- */
 let wakeLock = null, wantWake = false;
@@ -1291,6 +1403,184 @@ async function summarizeToInfo(transcript, job) {
   catch { throw new Error('요약 형식 오류 — 다시 시도해 주세요'); }
 }
 
+
+/* ==================== GPT IMAGE INFOGRAPHICS ==================== */
+// Never persist the OpenAI key or access token. A server proxy is preferred.
+function oaUrl(path) {
+  if (oaConfig.mode === 'proxy') {
+    const base = (oaConfig.proxyBase || '/api/openai').replace(/\/+$/, '');
+    if (!( /^\/[-\w/]+$/.test(base) || /^https:\/\/[a-z0-9.-]+(?::443)?(?:\/[-\w/]*)?$/i.test(base) || /^http:\/\/localhost(?::\d+)?(?:\/[-\w/]*)?$/i.test(base) ))
+      throw new Error('서버 주소는 HTTPS URL 또는 /api/openai 경로여야 합니다.');
+    return base + '/' + path;
+  }
+  return 'https://api.openai.com/v1/' + path;
+}
+async function oaFetch(path, payload, signal, method = 'POST') {
+  if (oaConfig.mode !== 'proxy' && !oaSessionKey) {
+    throw new Error('OpenAI key is missing. Open Settings and enter it before creating an image.');
+  }
+  const headers = { 'Accept': 'application/json' };
+  if (payload != null) headers['Content-Type'] = 'application/json';
+  if (oaConfig.mode === 'proxy') {
+    if (oaSessionToken) headers['X-App-Token'] = oaSessionToken;
+  } else headers['Authorization'] = 'Bearer ' + oaSessionKey;
+  const timeout = withTimeout(signal, path === 'images/generations' ? 300000 : 150000);
+  try {
+    let res;
+    try {
+      res = await fetch(oaUrl(path), { method, headers, body: payload == null ? undefined : JSON.stringify(payload), signal: timeout.signal, cache: 'no-store' });
+    } catch (e) {
+      if (signal && signal.aborted) throw new Aborted();
+      if (timeout.signal.aborted) throw new Error('OpenAI request timed out. Please retry.');
+      throw new Error('OpenAI connection failed. For file://, direct API access may be blocked by browser CORS. Use the secure server mode. (' + e.message + ')');
+    }
+    const body = await res.text();
+    let obj;
+    try { obj = JSON.parse(body); } catch { throw new Error('OpenAI response is not JSON (HTTP ' + res.status + ')'); }
+    if (!res.ok) {
+      const msg = obj && obj.error && obj.error.message ? obj.error.message : ('HTTP ' + res.status);
+      throw new Error('OpenAI HTTP ' + res.status + ': ' + msg);
+    }
+    return obj;
+  } finally { timeout.done(); }
+}
+function oaResponseText(result) {
+  const blocks = (result.output || []).filter(x => x.type === 'message').flatMap(x => x.content || []);
+  const content = blocks.filter(x => x.type === 'output_text').map(x => x.text || '').join('\n').trim();
+  if (result.status === 'incomplete') throw new Error('GPT response stopped early. Try a shorter meeting.');
+  if (!content) throw new Error('GPT did not return a text summary.');
+  return content;
+}
+async function oaText(prompt, content, job, format) {
+  const payload = { model: oaConfig.textModel, store: false,
+    input: [{ role: 'system', content: prompt }, { role: 'user', content }], max_output_tokens: format ? 4500 : 1700 };
+  if (format) payload.text = { format: { type: 'json_schema', name: 'meeting_infographic', strict: true, schema: INFO_SCHEMA } };
+  return oaResponseText(await oaFetch('responses', payload, job.signal));
+}
+async function oaAnalyzeMeeting(transcript, job) {
+  if (!transcript || !transcript.trim()) throw new Error('No meeting transcript found.');
+  if (transcript.length > 350000) throw new Error('Transcript too large. Split it into shorter meeting sections.');
+  let prepared = transcript;
+  let isNotes = false;
+  if (prepared.length > 18000) {
+    // Preserve all turns by condensing piecewise, rather than silently truncating.
+    for (let pass = 0; pass < 3 && prepared.length > 18000; pass++) {
+      const parts = splitParts(prepared, 10500);
+      const notes = [];
+      for (let i = 0; i < parts.length; i++) {
+        job.progress('GPT reading transcript, part ' + (i+1) + ' / ' + parts.length + (pass ? ' (pass '+(pass+1)+')' : ''));
+        const chunk = await oaText(NOTES_PROMPT + '\nSummarize no more than 12 critical bullets for this section.', wrapT(parts[i]), job, false);
+        notes.push('SECTION ' + (i+1) + '\n' + chunk);
+      }
+      const next = notes.join('\n');
+      if (next.length >= prepared.length) throw new Error('Transcript condensation made no progress; split the meeting.');
+      prepared = next; isNotes = true;
+    }
+    if (prepared.length > 22000) throw new Error('Meeting is too long to summarize reliably. Split it into sections.');
+  }
+  job.progress('GPT extracting grounded meeting facts...');
+  const content = (isNotes ? 'These are chronological source-based notes, not a new meeting.\n' : '') + wrapT(prepared);
+  const raw = await oaText(INFO_PROMPT + '\nStrictly distinguish proposals from agreed decisions. Never invent measurements, owners or dates.', content, job, true);
+  try { return normalizeInfo(JSON.parse(stripFence(raw))); }
+  catch { throw new Error('GPT structured summary was invalid. Retry once.'); }
+}
+function oaVisualPrompt(facts, meta) {
+  // Only summarized facts are sent to the image model; no speculative targets.
+  const lines = [];
+  const put = (heading, values, cap=5) => {
+    if (!values.length) return;
+    lines.push(heading + ':');
+    values.slice(0,cap).forEach((v,i) => lines.push((i+1) + '. ' + v));
+  };
+  put('KEY POINTS', facts.key_points.map(x => x.text), 5);
+  put('CONFIRMED DECISIONS', facts.decisions.map(x => x.text), 3);
+  put('MEASUREMENTS', facts.numbers.map(x => x.label + ': ' + x.value), 4);
+  put('ACTIONS', facts.action_items.map(x => [x.task, x.owner ? 'owner: ' + x.owner : '', x.due ? 'due: ' + x.due : ''].filter(Boolean).join(' / ')), 4);
+  put('OPEN ISSUES', facts.open_issues, 3);
+  put('NEXT STEPS', facts.next_steps, 3);
+  return [
+    'Create one polished professional Korean-language meeting infographic as a SINGLE finished raster image.',
+    'Canvas dimensions: ' + oaConfig.size + '. Respect this exact aspect ratio.',
+    'It must look like a polished executive presentation graphic with strong information hierarchy, balanced whitespace, architectural grid, clear sections, premium restrained navy/white/blue color palette and concise legible Korean typography.',
+    'Use technical photorealistic illustration in one focal panel ONLY when the exact subject is established in the facts. If an axial-flux motor (AFPM) is established, show a plausible conceptual axial-flux motor assembly, NOT a validated CAD design. Otherwise use subtle generic manufacturing/engineering visuals and clean diagrams, never fabricate a specific product.',
+    'No corporate logos. No fake charts or invented statistics. No generic filler boxes such as impact, achievements or benefits unless clearly supported by the facts.',
+    'Do not add content beyond the approved fact list below. Keep ALL numbers, units, dates and company names exactly as given. Distinguish proposals from decisions; do not convert an open issue into a decision.',
+    'Use 4 to 6 concise content panels maximum. Prefer meaningful diagrammatic layout to dense paragraphs. If no decisions/actions were confirmed, OMIT those panels. All visible copy should be Korean except technical terms/names as recorded.',
+    'TITLE: ' + facts.title,
+    'SUBTITLE: ' + (facts.one_line_summary || 'Meeting review'),
+    'MEETING DATE: ' + (meta.date || 'Not specified'),
+    'VERIFIED FACTS (only the following):\n' + lines.join('\n'),
+    'Output a premium corporate infographic, with carefully rendered readable text. Avoid unsupported claims. Clean polished design and clear alignment.'
+  ].join('\n\n');
+}
+function oaDecodeBase64(base64, type='image/png') {
+  const plain = base64.replace(/\s/g, '');
+  const chunks = [];
+  const charsPerChunk = 32768; // multiple of 4
+  for (let i = 0; i < plain.length; i += charsPerChunk) {
+    const decoded = atob(plain.slice(i, i + charsPerChunk));
+    const bytes = new Uint8Array(decoded.length);
+    for (let j = 0; j < decoded.length; j++) bytes[j] = decoded.charCodeAt(j);
+    chunks.push(bytes);
+  }
+  return new Blob(chunks, { type });
+}
+async function oaGenerateImage(facts, meta, job) {
+  job.progress('GPT Image creating the infographic... (may take 1-3 minutes)');
+  const json = await oaFetch('images/generations', {
+    model: oaConfig.imageModel,
+    prompt: oaVisualPrompt(facts, meta),
+    n: 1, size: oaConfig.size,
+    quality: oaConfig.quality,
+    output_format: 'png'
+  }, job.signal);
+  const b64 = json.data && json.data[0] && json.data[0].b64_json;
+  if (!b64) throw new Error('Image API returned no PNG data.');
+  return oaDecodeBase64(b64);
+}
+let oaCurrentImageUrl = null;
+function oaShowImage(title, blob, fileName) {
+  finishJob(); openViewer(title);
+  if (oaCurrentImageUrl) URL.revokeObjectURL(oaCurrentImageUrl);
+  oaCurrentImageUrl = URL.createObjectURL(blob);
+  viewerData = { blob, fileName };
+  const panel = document.createElement('div'); panel.className = 'gpt-view';
+  const img = document.createElement('img'); img.src = oaCurrentImageUrl; img.alt = title;
+  const note = document.createElement('p'); note.className = 'gpt-note';
+  note.textContent = 'AI-generated image. Check all Korean text, units and claims against the transcript before using this in a report.';
+  panel.append(img,note);
+  $('viewerBody').replaceChildren(panel);
+  $('viewerSave').style.display = '';
+  $('viewerShare').style.display = '';
+}
+async function oaMakeInfographic(transcript, meta, baseName, job) {
+  const facts = await oaAnalyzeMeeting(transcript, job);
+  if (!job.active()) return;
+  const image = await oaGenerateImage(facts, meta, job);
+  if (!job.active()) return;
+  oaShowImage(facts.title, image, baseName + '_GPT_Infographic.png');
+}
+async function oaInfoFromChat() {
+  if (!messages.length) return toast('No conversation to summarize.');
+  const job = openJob('GPT Image infographic', 'Preparing...');
+  try {
+    const first = new Date(messages[0].at);
+    const transcript = messages.map(m => '[' + hm(new Date(m.at)) + '] [' + LANGS[m.src].code + '] ' + m.orig).join('\n');
+    await oaMakeInfographic(transcript,
+      { date: first.toLocaleString('ko-KR'), source: settings.title || 'Current meeting', duration: '' },
+      today() + '_' + safeName(settings.partnerCo), job);
+  } catch(e) { job.fail(e); }
+}
+async function oaTestConnection() {
+  const button = $('oaTest');
+  button.disabled = true; button.textContent = 'Testing OpenAI...';
+  try {
+    await oaFetch('models/' + encodeURIComponent(oaConfig.imageModel), null, null, 'GET');
+    toast('OpenAI authenticated. Generation access and billing are checked when creating an image.', 4600);
+  } catch(e) { toast(e.message, 5500); }
+  finally { button.disabled = false; button.textContent = 'Check OpenAI connection'; }
+}
+
 /* ---- infographic HTML (same design as InfographicRenderer.cs; values text-only, escaped) ---- */
 const INFO_CSS = `:root{--ink:#0f172a;--sub:#64748b;--line:#e2e8f0;--bg:#f1f5f9;--card:#fff;--blue:#2563eb;--green:#16a34a;--violet:#7c3aed;--amber:#d97706}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard","Malgun Gothic","Apple SD Gothic Neo","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1364,76 +1654,57 @@ function fmtDuration(sec) {
 
 async function makeInfographic(transcript, meta, baseName, job) {
   if (!transcript.trim()) throw new Error('요약할 내용이 없습니다');
-  const at = meta.at;
-  // date: shown on the infographic; ymd: same yyyy-MM-dd form the desktop GPT request uses.
-  meta = { ...meta, date: at.toLocaleString('ko-KR'), ymd: `${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())}` };
   const data = await summarizeToInfo(transcript, job);
   if (!job.active()) return;
   const html = renderInfographic(data, meta);
   showHtml(data.title, html, `${baseName}_인포그래픽.html`);
   viewerData.gptPrompt = buildGptPrompt(data, meta);
   $('viewerGpt').style.display = '';
-  if (!store.get('bmt.gptHinted', false)) { store.set('bmt.gptHinted', true); toast('🎨 버튼으로 ChatGPT에서 그림 인포그래픽을 만들 수 있습니다', 4500); }
 }
 
-// Request text for ChatGPT's image generation. Image models garble long text, so each
-// section is capped and the exact wording is spelled out to be copied verbatim.
-// Keep in sync with InfographicRenderer.BuildGptImagePrompt (desktop).
+
+/* ---------------- Preserve share-to-ChatGPT from hosted GitHub app ---------------- */
 function buildGptPrompt(d, meta) {
-  const s = v => typeof v === 'string' ? v.trim() : '';
-  const L = [
-    '아래 회의 요약 내용으로 세로형(4:5) 인포그래픽 이미지를 한 장 그려 주세요.', '',
-    '[디자인]',
-    '- 깔끔한 비즈니스 인포그래픽. 플랫 일러스트와 아이콘, 남색·파랑 바탕에 주황 포인트 색',
-    '- 맨 위: 제목과 한 줄 요약 / 그 아래: 핵심 수치를 큰 숫자 카드로 / 이어서 핵심 논의, 결정 사항, 액션 아이템(담당·기한), 미결 사항, 다음 단계를 구역별로',
-    '- 자동차 부품·제조업 비즈니스 미팅 분위기의 작은 일러스트(회의, 악수, 공장, 부품 등)를 곁들여 주세요',
-    '- 글자는 반드시 아래 [내용]의 한글·숫자를 철자 그대로 정확하게 써 주세요. 내용을 지어내거나 바꾸지 말고, 읽기 쉬운 큰 글씨로.', '',
-    '[내용]', `제목: ${d.title}`,
+  const str=v=>typeof v==='string'?v.trim():'';
+  const L=[
+    '아래 검증된 회의 내용만으로 한 장짜리 세로형(4:5) 인포그래픽 이미지를 만들어 주세요.',
+    '임의 수치, 결론, 담당자, 기한, 회사명, 사실을 추가하지 마세요. 기술적 개념도는 실제 설계도처럼 오인되지 않게 하세요.',
+    '[제목] '+d.title,
+    '[한 줄 요약] '+(d.one_line_summary||''),
+    '[회의 정보] '+[meta.date,meta.duration].filter(Boolean).join(' · ')
   ];
-  if (d.one_line_summary) L.push(`한 줄 요약: ${d.one_line_summary}`);
-  L.push(`회의 정보: ${[meta.ymd, meta.duration].filter(Boolean).join(' · ')}`);
-  const section = (title, lines) => { if (lines.length) L.push('', `${title}:`, ...lines.map(x => `- ${x}`)); };
-  section('핵심 수치', d.numbers.slice(0, 4).map(n => `${s(n.value)} — ${s(n.label)}`));
-  section('핵심 논의', d.key_points.slice(0, 5).map(p => s(p.text)));
-  section('결정 사항', d.decisions.slice(0, 4).map(p => s(p.text)));
-  section('액션 아이템', d.action_items.slice(0, 5).map(a => `${s(a.task)} (담당: ${s(a.owner) || '미지정'}, 기한: ${s(a.due) || '미정'})`));
-  section('미결 사항', d.open_issues.slice(0, 3).map(s));
-  section('다음 단계', d.next_steps.slice(0, 3).map(s));
+  const sect=(name,arr)=>{if(arr.length)L.push('',name+':',...arr.map(x=>'- '+x));};
+  sect('핵심 수치',d.numbers.slice(0,4).map(x=>str(x.label)+': '+str(x.value)));
+  sect('핵심 논의',d.key_points.slice(0,5).map(x=>str(x.text)));
+  sect('확정된 결정사항',d.decisions.slice(0,4).map(x=>str(x.text)));
+  sect('실행 항목',d.action_items.slice(0,5).map(x=>str(x.task)+' / 담당: '+(str(x.owner)||'미정')+' / 기한: '+(str(x.due)||'미정')));
+  sect('미결 사항',d.open_issues.slice(0,3).map(str));
+  sect('다음 단계',d.next_steps.slice(0,3).map(str));
   return L.join('\n');
 }
-
 async function copyText(text) {
-  try { await navigator.clipboard.writeText(text); return true; }
+  try {await navigator.clipboard.writeText(text);return true;}
   catch {
-    const t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
-    document.body.appendChild(t); t.select();
-    let ok = false; try { ok = document.execCommand('copy'); } catch {}
-    t.remove(); return ok;
+    const t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.position='fixed';t.style.opacity='0';
+    document.body.appendChild(t);t.select();let ok=false;try{ok=document.execCommand('copy');}catch{}t.remove();return ok;
   }
 }
-
-$('viewerGpt').onclick = () => {
-  if (!viewerData || !viewerData.gptPrompt) return;
-  $('gptText').textContent = viewerData.gptPrompt;
-  openSheet('sheetGpt', true);
+$('viewerGpt').onclick=()=>{
+  if(!viewerData||!viewerData.gptPrompt)return;
+  $('gptText').textContent=viewerData.gptPrompt;
+  openSheet('sheetGpt',true);
 };
-const MANUAL_COPY = '자동 복사에 실패했습니다. 요청문을 길게 눌러 전체 선택 → 복사하세요';
-$('gptCopy').onclick = async () => toast(await copyText($('gptText').textContent) ? '복사했습니다 · ChatGPT 입력창에 붙여넣으세요' : MANUAL_COPY, 4000);
-$('gptShare').onclick = async () => {
-  const text = $('gptText').textContent;
-  const copied = await copyText(text);   // fallback if the chosen app doesn't take shared text
-  if (navigator.share) {
-    try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
-  }
-  toast(copied ? '공유를 지원하지 않아 복사만 했습니다. ChatGPT 앱에 붙여넣으세요' : MANUAL_COPY, 4500);
+$('gptCopy').onclick=async()=>toast(await copyText($('gptText').textContent)?'요청문을 복사했습니다':'복사 실패 · 문구를 길게 눌러 복사하세요',4000);
+$('gptShare').onclick=async()=>{
+  const prompt=$('gptText').textContent;const copied=await copyText(prompt);
+  if(navigator.share)try{await navigator.share({text:prompt});return;}catch(e){if(e&&e.name==='AbortError')return;}
+  toast(copied?'복사했습니다. ChatGPT에 붙여넣으세요':'공유 실패',4500);
 };
-$('gptWeb').onclick = async () => {
-  const text = $('gptText').textContent;
-  const copied = await copyText(text);
-  // Korean grows ~9x when URL-encoded; past this the prompt stays clipboard-only.
-  const enc = encodeURIComponent(text), inUrl = enc.length <= 12000;
-  window.open(inUrl ? 'https://chatgpt.com/?q=' + enc : 'https://chatgpt.com/', '_blank', 'noopener');
-  if (!inUrl) toast(copied ? '요청문을 복사했습니다 · ChatGPT 입력창에 붙여넣으세요' : MANUAL_COPY, 4500);
+$('gptWeb').onclick=async()=>{
+  const prompt=$('gptText').textContent;const copied=await copyText(prompt);
+  const enc=encodeURIComponent(prompt), inUrl=enc.length<=12000;
+  window.open(inUrl?'https://chatgpt.com/?q='+enc:'https://chatgpt.com/','_blank','noopener');
+  if(!inUrl)toast(copied?'요청문을 복사했습니다':'복사 실패',4500);
 };
 
 async function infoFromChat() {
@@ -1442,12 +1713,12 @@ async function infoFromChat() {
   try {
     const first = new Date(messages[0].at);
     const transcript = messages.map(m => `[${hm(new Date(m.at))}] [${LANGS[m.src].code}] ${m.orig}`).join('\n');
-    await makeInfographic(transcript, { at: first, source: settings.title || '현재 대화', duration: '' },
+    await makeInfographic(transcript, { date: first.toLocaleString('ko-KR'), source: settings.title || '현재 대화', duration: '' },
       `${today()}_${safeName(settings.partnerCo)}`, job);
   } catch (e) { job.fail(e); }
 }
 
-async function infoFromRecording(meta) {
+async function infoFromRecording(meta, mode = 'html') {
   const job = openJob('인포그래픽', '준비 중...');
   try {
     let transcript = meta.complete && meta.lines && meta.lines.length ? meta.lines.join('\n') : '';
@@ -1456,7 +1727,7 @@ async function infoFromRecording(meta) {
       // Interrupted or failed session: transcribe the stored audio utterance by utterance.
       transcript = await transcribePcmBlocks(recDb.blocks(meta.id), meta.samples / SR, job);
     }
-    await makeInfographic(transcript, { at: new Date(meta.startedAt), duration: fmtDuration(meta.samples / SR), source: meta.name + '.wav' }, meta.name, job);
+    await (mode === 'gpt' ? oaMakeInfographic : makeInfographic)(transcript, { date: new Date(meta.startedAt).toLocaleString('ko-KR'), duration: fmtDuration(meta.samples / SR), source: meta.name + '.wav' }, meta.name, job);
   } catch (e) { job.fail(e); }
 }
 
@@ -1480,7 +1751,7 @@ async function transcribePcmBlocks(blocks, totalSec, job) {
   return lines.join('\n');
 }
 
-async function infoFromFile(file) {
+async function infoFromFile(file, mode = 'html') {
   const job = openJob('인포그래픽', '오디오 파일을 읽는 중...');
   try {
     // decodeAudioData expands the whole file in memory (16 kHz float); keep it bounded on phones.
@@ -1508,7 +1779,7 @@ async function infoFromFile(file) {
     }
     const transcript = await transcribePcmBlocks(blocks(), audio.duration, job);
     const base = safeName(file.name.replace(/\.[^.]+$/, ''));
-    await makeInfographic(transcript, { at: new Date(file.lastModified || Date.now()), duration: fmtDuration(audio.duration), source: file.name }, base, job);
+    await (mode === 'gpt' ? oaMakeInfographic : makeInfographic)(transcript, { date: new Date(file.lastModified || Date.now()).toLocaleString('ko-KR'), duration: fmtDuration(audio.duration), source: file.name }, base, job);
   } catch (e) { job.fail(e); }
 }
 
@@ -1551,7 +1822,7 @@ function showHtml(title, html, fileName) {
   $('viewerBody').innerHTML = ''; $('viewerBody').appendChild(f);
   $('viewerSave').style.display = ''; $('viewerShare').style.display = '';
 }
-$('viewerClose').onclick = () => { if (currentJob) { currentJob.ctl.abort(); currentJob = null; } $('viewer').classList.remove('on'); };
+$('viewerClose').onclick = () => { if (oaCurrentImageUrl) { URL.revokeObjectURL(oaCurrentImageUrl); oaCurrentImageUrl = null; }  if (currentJob) { currentJob.ctl.abort(); currentJob = null; } $('viewer').classList.remove('on'); };
 $('viewerCancel').onclick = () => currentJob && currentJob.ctl.abort();
 $('viewerSave').onclick = () => viewerData && downloadBlob(viewerData.blob, viewerData.fileName);
 $('viewerShare').onclick = () => viewerData && shareBlob(viewerData.blob, viewerData.fileName, viewerData.text);
@@ -1580,12 +1851,13 @@ async function openRecordings() {
   if (!items.length) { list.innerHTML = '<div class="progress">저장된 녹음이 없습니다. 🎙 실시간 통역을 쓰면 자동으로 녹음됩니다.</div>'; return; }
   list.innerHTML = (recDb.failed ? '<div class="warnbox">이 브라우저는 저장소를 쓸 수 없어 녹음이 이 탭을 닫으면 사라집니다. 바로 저장하세요.</div>' : '') +
     items.map(m => `<div class="rec-item"><div class="info">${esc(m.name)}<small>${esc(new Date(m.startedAt).toLocaleString('ko-KR'))} · ${esc(fmtDuration(m.samples / SR) || '0초')}${m.complete ? ' · 대본 있음' : ''}</small></div>
-      <button data-rec-info="${esc(m.id)}">📊</button><button data-rec-save="${esc(m.id)}">💾</button><button data-rec-del="${esc(m.id)}">🗑</button></div>`).join('');
+      <button data-rec-gpt="${esc(m.id)}">AI</button><button data-rec-info="${esc(m.id)}">📊</button><button data-rec-save="${esc(m.id)}">💾</button><button data-rec-del="${esc(m.id)}">🗑</button></div>`).join('');
   list.onclick = async e => {
     const b = e.target.closest('button'); if (!b) return;
-    const id = b.dataset.recInfo || b.dataset.recSave || b.dataset.recDel;
+    const id = b.dataset.recGpt || b.dataset.recInfo || b.dataset.recSave || b.dataset.recDel;
     const meta = items.find(x => x.id === id); if (!meta) return;
-    if (b.dataset.recInfo) { closeSheets(); infoFromRecording(meta); }
+    if (b.dataset.recGpt) { closeSheets(); infoFromRecording(meta, 'gpt'); }
+    else if (b.dataset.recInfo) { closeSheets(); infoFromRecording(meta); }
     else if (b.dataset.recSave) {
       // Share needs a fresh user tap (Safari expires activation during long work), so
       // prepare the file first and offer share/save buttons once it's ready.
@@ -1605,30 +1877,29 @@ async function openRecordings() {
 }
 
 /* ---------------- sheets ---------------- */
-// top: the sheet opens over a full-screen viewer, so its backdrop must sit above it too.
-function openSheet(id, top = false) { closeSheets(); $('backdrop').classList.toggle('top', top); $('backdrop').classList.add('on'); $(id).classList.add('on'); }
-function closeSheets() { $('backdrop').classList.remove('on', 'top'); document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); }
+function openSheet(id, top=false) { closeSheets(); $('backdrop').classList.toggle('top',top); $('backdrop').classList.add('on'); $(id).classList.add('on'); }
+function closeSheets() { $('backdrop').classList.remove('on','top'); document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); }
 $('backdrop').onclick = closeSheets;
 $('btnMenu').onclick = () => openSheet('sheetMenu');
 $('sheetMenu').onclick = e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act; closeSheets();
   if (act === 'install') promptInstall();
-  else if (act === 'select') { if (!messages.length) toast('지울 문장이 없습니다'); else enterSelect(); }
+  else if (act === 'select') { if(!messages.length)toast('지울 문장이 없습니다'); else enterSelect(); }
   else if (act === 'summary') doSummary();
   else if (act === 'infoChat') infoFromChat();
+  else if (act === 'infoGptChat') oaInfoFromChat();
   else if (act === 'recordings') openRecordings();
-  else if (act === 'infoFile') { if (!settings.apiKey) return toast('먼저 ⚙ 설정에서 API 키를 입력하세요'); $('fileAudio').value = ''; $('fileAudio').click(); }
+  else if (act === 'infoGptFile') { if (!settings.apiKey) return toast('Groq key required for audio transcription.'); $('fileAudio').dataset.mode = 'gpt'; $('fileAudio').value = ''; $('fileAudio').click(); }
+  else if (act === 'infoFile') { $('fileAudio').dataset.mode = 'html'; if (!settings.apiKey) return toast('먼저 ⚙ 설정에서 API 키를 입력하세요'); $('fileAudio').value = ''; $('fileAudio').click(); }
   else if (act === 'export') exportLog();
   else if (act === 'newMeeting') {
     if (live) return toast('실시간 통역을 먼저 중지하세요');
-    // Confirm only when there is something to lose; the reset itself always runs so a pending
-    // "실행 취소" can't restore lines from the previous meeting.
     if (messages.length && !confirm('대화를 모두 비울까요? (녹음 목록은 유지됩니다)\n먼저 회의록을 저장하려면 취소하세요.')) return;
-    messages = []; undoState = null; clearTimeout(undoTimer); $('undoBar').classList.remove('on'); exitSelect(); saveMessages(); renderAll();
+    messages=[];undoState=null;clearTimeout(undoTimer);$('undoBar').classList.remove('on');exitSelect();saveMessages();renderAll();
   }
 };
-$('fileAudio').onchange = e => { const f = e.target.files && e.target.files[0]; if (f) infoFromFile(f); };
+$('fileAudio').onchange = e => { const f = e.target.files && e.target.files[0]; if (f) infoFromFile(f, e.target.dataset.mode === 'gpt' ? 'gpt' : 'html'); };
 
 $('btnStarred').onclick = () => {
   const st = messages.filter(m => m.star);
@@ -1665,10 +1936,13 @@ function openSettings() {
   $('setKey').value = settings.apiKey; $('setTitle').value = settings.title; $('setPartnerCo').value = settings.partnerCo;
   $('setLocation').value = settings.location; $('setParticipants').value = settings.participants; $('setAutoSend').checked = settings.autoSend;
   $('setModel').value = settings.model; $('setEndpoint').value = settings.endpoint;
+  oaLoadFields();
   $('glossaryInfo').textContent = `${settings.glossaryCsv ? '가져온 사전' : '기본 사전'} · ${glossary.length}개 용어`;
   const w = $('ctxWarn');
-  if (!window.isSecureContext) { w.style.display = ''; w.textContent = '⚠ 지금 주소에서는 마이크·화면 켜짐 유지가 막혀 있습니다. https 주소로 열어야 음성 기능을 쓸 수 있습니다(텍스트 번역은 가능).'; }
-  else w.style.display = 'none';
+  const issue = updateMicEnvironment();
+  if (issue) { w.style.display = ''; w.textContent = '⚠ ' + issue + ' (텍스트 번역은 계속 사용 가능)'; }
+  else { w.style.display = 'none'; }
+
   openSheet('sheetSettings');
 }
 $('btnSettings').onclick = openSettings;
@@ -1679,8 +1953,38 @@ $('btnSettingsSave').onclick = () => {
     location: $('setLocation').value.trim(), participants: $('setParticipants').value.trim(), autoSend: $('setAutoSend').checked,
     model: $('setModel').value.trim() || DEFAULT_SETTINGS.model, endpoint: $('setEndpoint').value.trim() || DEFAULT_SETTINGS.endpoint,
   });
+  oaReadFields(); oaSaveConfig();
   saveSettings(); refreshHeader(); closeSheets(); toast('저장했습니다');
 };
+
+/* ---------------- OpenAI settings UI ---------------- */
+function oaToggleMode() {
+  const proxy = $('oaMode').value === 'proxy';
+  $('oaProxyBlock').style.display = proxy ? '' : 'none';
+  $('oaDirectBlock').style.display = proxy ? 'none' : '';
+}
+function oaLoadFields() {
+  $('oaMode').value = oaConfig.mode;
+  $('oaKey').value = oaSessionKey;
+  $('oaToken').value = oaSessionToken;
+  $('oaProxyBase').value = oaConfig.proxyBase;
+  $('oaImageModel').value = oaConfig.imageModel;
+  $('oaQuality').value = oaConfig.quality;
+  $('oaSize').value = oaConfig.size;
+  oaToggleMode();
+}
+function oaReadFields() {
+  oaConfig.mode = $('oaMode').value;
+  oaConfig.proxyBase = $('oaProxyBase').value.trim() || OPENAI_DEFAULTS.proxyBase;
+  oaConfig.imageModel = $('oaImageModel').value;
+  oaConfig.quality = $('oaQuality').value;
+  oaConfig.size = $('oaSize').value;
+  oaSessionKey = $('oaKey').value.trim();
+  oaSessionToken = $('oaToken').value.trim();
+}
+$('oaMode').onchange = oaToggleMode;
+$('oaTest').onclick = () => { oaReadFields(); oaSaveConfig(); oaTestConnection(); };
+
 $('btnTest').onclick = async () => {
   const key = $('setKey').value.trim();
   if (!key) return toast('API 키를 입력하세요');
@@ -1700,26 +2004,22 @@ $('btnGlossaryReset').onclick = () => { settings.glossaryCsv = null; saveSetting
 
 window.addEventListener('beforeunload', e => { if (live) { e.preventDefault(); e.returnValue = ''; } });
 
-/* ---------------- install as app (PWA) ---------------- */
-const isInstalled = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
-let installPrompt = null;
-// Chrome/Samsung Internet hand us the install prompt once the page qualifies; keep it for the menu.
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault(); installPrompt = e;
-  $('menuInstall').style.display = '';
-  if (!store.get('bmt.installHinted', false)) { store.set('bmt.installHinted', true); toast('☰ 메뉴 → 📲 앱으로 설치 로 홈 화면에 추가할 수 있습니다', 4500); }
+
+/* ---------------- GitHub Pages PWA install (preserved) ---------------- */
+const isInstalled=()=> (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+let installPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();installPrompt=e;$('menuInstall').style.display='';
 });
-window.addEventListener('appinstalled', () => { installPrompt = null; $('menuInstall').style.display = 'none'; toast('설치했습니다 · 홈 화면의 "미팅 통역" 아이콘으로 여세요', 4500); });
-async function promptInstall() {
-  if (!installPrompt) { toast('브라우저 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"를 누르세요', 4500); return; }
-  const p = installPrompt; installPrompt = null; $('menuInstall').style.display = 'none';
-  try { await p.prompt(); await p.userChoice; } catch {}
+window.addEventListener('appinstalled',()=>{installPrompt=null;$('menuInstall').style.display='none';toast('설치했습니다. 홈 화면에서 실행하세요',4500);});
+async function promptInstall(){
+  if(!installPrompt){toast('브라우저 메뉴(⋮) → 홈 화면에 추가 또는 앱 설치를 누르세요',4500);return;}
+  const p=installPrompt;installPrompt=null;$('menuInstall').style.display='none';
+  try{await p.prompt();await p.userChoice;}catch{}
 }
-// The service worker only exists on the hosted (https) copy; a locally opened file skips it.
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 }
-if (!isInstalled() && location.protocol === 'https:' && !('onbeforeinstallprompt' in window)) $('menuInstall').style.display = '';
 
 /* ---------------- init ---------------- */
 for (const m of messages) if (m.state === 'pending') { m.state = 'fail'; m.trans = '번역이 중단되었습니다'; }
@@ -1728,6 +2028,7 @@ loadGlossary();
 refreshHeader();
 refreshButtons();
 renderAll();
+updateMicEnvironment();
 if (!settings.apiKey) setTimeout(openSettings, 400);
 </script>
 </body>
