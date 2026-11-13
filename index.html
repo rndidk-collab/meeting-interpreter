@@ -386,7 +386,7 @@ function loadGlossary() {
 // Latin-script terms (company names like "ABB", "THK") must match whole words, or "ABB"
 // would hit "abbreviation"; Korean/CJK terms keep substring matching since particles attach
 // ("니덱의"). Keep in sync with GlossaryService.Protect (desktop).
-const ASCII_TERM = /^[ -]+$/, WORD_CHAR = /[A-Za-z0-9]/;
+const ASCII_TERM = { test: t => [...t].every(c => c.charCodeAt(0) < 128) }, WORD_CHAR = /[A-Za-z0-9]/;
 function protectTerms(text, src, tgt) {
   const placeholders = {};
   let result = text, index = 0;
