@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<title>미팅 통역 · GPT 인포그래픽 (2026.11.12)</title>
+<title>미팅 통역</title>
 <style>
 :root{
   --bg:#07101c; --bg2:#0d1a2d; --surface:rgba(255,255,255,0.045); --surface2:rgba(255,255,255,0.08);
@@ -53,12 +53,6 @@ select,input,textarea{font:inherit;color:var(--text)}
 .livebar .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @keyframes blink{50%{opacity:.25}}
 
-/* microphone diagnostics */
-.mic-alert{display:none;margin:8px 12px 0;padding:10px 12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fde68a;border-radius:12px;font-size:.77rem;line-height:1.5;flex-shrink:0}
-.mic-alert.on{display:block}
-.mic-test-result{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.79rem;color:var(--text2);line-height:1.6;margin-top:8px;white-space:pre-wrap}
-.mic-test-result.success{color:var(--success);border-color:rgba(52,211,153,.4)}
-.mic-test-result.fail{color:#fda4af;border-color:rgba(239,68,68,.4)}
 /* chat */
 .chat{flex:1;overflow-y:auto;padding:12px 12px 16px;-webkit-overflow-scrolling:touch}
 .empty{color:var(--text3);text-align:center;margin-top:18vh;line-height:1.8;font-size:.9rem;padding:0 20px}
@@ -76,6 +70,26 @@ select,input,textarea{font:inherit;color:var(--text)}
 .trans{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border2);font-size:1rem;line-height:1.5;color:#cbd5e1;word-break:break-word}
 .trans.pending{color:var(--text3);font-style:italic}
 .trans.fail{color:#fca5a5}
+/* selection mode (long-press a card) */
+.selbar{display:none;position:fixed;left:0;right:0;top:0;z-index:150;padding:calc(6px + var(--safe-t)) 6px 6px;align-items:center;gap:4px;
+  background:#1e1b4b;border-bottom:1px solid rgba(129,140,248,.4)}
+.selbar.on{display:flex}
+.selbar .t{flex:1;font-weight:700;font-size:.95rem;padding-left:4px}
+.selbar .sb{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;font-size:.82rem;font-weight:700}
+.selbar .sb.del{background:var(--danger);border-color:var(--danger);color:#fff}
+.selbar .sb:disabled{opacity:.4}
+.chk{display:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:transparent}
+body.selecting .chk{display:flex}
+body.selecting .star{display:none}
+.msg.sel{outline:2px solid var(--accent2);background:rgba(99,102,241,.14)}
+/* long-press selects the card, not the text (tap the card to see/copy it large) */
+.msg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.msg.sel .chk{background:var(--accent);border-color:var(--accent);color:#fff}
+.undo{position:fixed;left:12px;right:12px;bottom:calc(150px + var(--safe-b));z-index:400;display:none;align-items:center;gap:10px;
+  background:#1e293b;border:1px solid var(--border2);border-radius:12px;padding:10px 12px;font-size:.88rem}
+.undo.on{display:flex}
+.undo span{flex:1}
+.undo button{background:none;border:none;color:var(--accent2);font-weight:800;font-size:.9rem;padding:4px 6px}
 .retry{margin-left:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:2px 10px;font-size:.78rem}
 
 /* dock */
@@ -104,6 +118,7 @@ select,input,textarea{font:inherit;color:var(--text)}
 .sheet{position:fixed;left:0;right:0;bottom:0;background:#0f1b2e;border-radius:20px 20px 0 0;border-top:1px solid var(--border2);
   padding:10px 14px calc(16px + var(--safe-b));z-index:210;transform:translateY(105%);transition:transform .22s ease;max-height:88dvh;overflow-y:auto}
 .sheet.on{transform:none}
+.sheet.top{z-index:330} .backdrop.top{z-index:320}
 .grab{width:40px;height:4px;border-radius:2px;background:var(--border2);margin:2px auto 10px}
 .sheet h3{font-size:1rem;margin:4px 2px 12px}
 .menu-item{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;text-align:left;padding:13px 6px;
@@ -148,23 +163,6 @@ select,input,textarea{font:inherit;color:var(--text)}
 .rec-item .info small{display:block;color:var(--text3);font-size:.72rem}
 .rec-item button{background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:7px 9px;font-size:.78rem}
 .warnbox{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fde68a;border-radius:12px;padding:10px 12px;font-size:.78rem;line-height:1.55;margin-bottom:12px}
-
-/* OpenAI output panel */
-.gpt-view{min-height:100%;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px;background:#101827}
-.gpt-view img{display:block;max-width:100%;width:auto;max-height:calc(100dvh - 155px);object-fit:contain;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.4)}
-.gpt-view .gpt-note{font-size:12px;color:#9ca3af;line-height:1.55;text-align:center}
-
-/* GitHub production features (select/delete, PWA and ChatGPT share panel) */
-.selbar{display:none;position:fixed;left:0;right:0;top:0;z-index:150;padding:calc(6px + var(--safe-t)) 6px 6px;align-items:center;gap:4px;background:#1e1b4b;border-bottom:1px solid rgba(129,140,248,.4)}
-.selbar.on{display:flex}.selbar .t{flex:1;font-weight:700;font-size:.95rem;padding-left:4px}
-.selbar .sb{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;font-size:.82rem;font-weight:700}
-.selbar .sb.del{background:var(--danger);border-color:var(--danger);color:#fff}.selbar .sb:disabled{opacity:.4}
-.chk{display:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:transparent}
-body.selecting .chk{display:flex}body.selecting .star{display:none}.msg.sel{outline:2px solid var(--accent2);background:rgba(99,102,241,.14)}
-.msg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.msg.sel .chk{background:var(--accent);border-color:var(--accent);color:#fff}
-.undo{position:fixed;left:12px;right:12px;bottom:calc(150px + var(--safe-b));z-index:400;display:none;align-items:center;gap:10px;background:#1e293b;border:1px solid var(--border2);border-radius:12px;padding:10px 12px;font-size:.88rem}
-.undo.on{display:flex}.undo span{flex:1}.undo button{background:none;border:none;color:var(--accent2);font-weight:800;font-size:.9rem;padding:4px 6px}
-.sheet.top{z-index:330}.backdrop.top{z-index:320}
 </style>
 </head>
 <body>
@@ -179,6 +177,13 @@ body.selecting .chk{display:flex}body.selecting .star{display:none}.msg.sel{outl
   <button class="icon-btn" id="btnSettings" aria-label="설정">⚙</button>
 </header>
 
+<div class="selbar" id="selBar">
+  <button class="icon-btn" id="selCancel" aria-label="선택 취소">✕</button>
+  <div class="t" id="selCount">0개 선택</div>
+  <button class="sb" id="selAll">전체</button>
+  <button class="sb del" id="selDelete" disabled>🗑 삭제</button>
+</div>
+
 <div class="langbar">
   <div class="langsel our"><label>우리측 언어</label><select id="selOur"></select></div>
   <button class="swap" id="btnSwap" aria-label="언어 바꾸기">⇄</button>
@@ -191,13 +196,6 @@ body.selecting .chk{display:flex}body.selecting .star{display:none}.msg.sel{outl
   </select>
 </div>
 
-<div class="selbar" id="selBar">
-  <button class="icon-btn" id="selCancel" aria-label="선택 취소">✕</button>
-  <div class="t" id="selCount">0개 선택</div>
-  <button class="sb" id="selAll">전체</button>
-  <button class="sb del" id="selDelete" disabled>삭제</button>
-</div>
-<div class="mic-alert" id="micAlert" role="alert"></div>
 <main class="chat" id="chat"></main>
 
 <footer class="dock">
@@ -218,14 +216,12 @@ body.selecting .chk{display:flex}body.selecting .star{display:none}.msg.sel{outl
 <!-- menu -->
 <div class="sheet" id="sheetMenu">
   <div class="grab"></div>
-  <button class="menu-item" data-act="install" id="menuInstall" style="display:none"><span class="mi">📲</span><span>앱으로 설치<small>홈 화면 아이콘으로 바로 열기</small></span></button>
+  <button class="menu-item" data-act="install" id="menuInstall" style="display:none"><span class="mi">📲</span><span>앱으로 설치<small>홈 화면 아이콘으로 바로 열기 (주소창 없이)</small></span></button>
   <button class="menu-item" data-act="summary"><span class="mi">📝</span><span>회의 요약<small>지금까지 대화를 9개 항목으로 요약</small></span></button>
   <button class="menu-item" data-act="infoChat"><span class="mi">📊</span><span>대화로 인포그래픽 만들기<small>현재 대화(실시간 통역 포함)를 한 장으로</small></span></button>
-  <button class="menu-item" data-act="infoGptChat"><span class="mi">🎨</span><span>ChatGPT 무료 이미지 인포그래픽<small>회의 요약 → ChatGPT 앱으로 보내기 · 별도 API 요금 없음</small></span></button>
   <button class="menu-item" data-act="recordings"><span class="mi">🎧</span><span>녹음 목록<small>실시간 통역 녹음 저장·공유·인포그래픽</small></span></button>
   <button class="menu-item" data-act="infoFile"><span class="mi">📁</span><span>녹음 파일로 인포그래픽<small>휴대폰에 있는 녹음 파일 선택</small></span></button>
-  <button class="menu-item" data-act="infoGptFile"><span class="mi">🎨</span><span>녹음 파일로 ChatGPT 이미지 요청<small>음성 인식·요약 → ChatGPT 공유 · API 결제 없음</small></span></button>
-  <button class="menu-item" data-act="select"><span class="mi">🗑</span><span>문장 선택 삭제<small>카드를 길게 눌러 선택할 수도 있습니다</small></span></button>
+  <button class="menu-item" data-act="select"><span class="mi">🗑</span><span>문장 선택 삭제<small>잘못 들어간 문장 지우기 (카드를 길게 눌러도 됩니다)</small></span></button>
   <button class="menu-item" data-act="export"><span class="mi">💾</span><span>회의록 저장 / 공유<small>TXT 파일로 내보내기</small></span></button>
   <button class="menu-item" data-act="newMeeting"><span class="mi">🧹</span><span>새 회의 시작<small>대화 비우기 (녹음은 유지)</small></span></button>
 </div>
@@ -235,20 +231,9 @@ body.selecting .chk{display:flex}body.selecting .star{display:none}.msg.sel{outl
   <div class="grab"></div>
   <h3>설정</h3>
   <div class="warnbox" id="ctxWarn" style="display:none"></div>
-  <div class="field"><label>마이크 자체 테스트</label>
-    <button class="btn" id="btnMicTest" type="button">🎤 마이크 권한·입력 테스트 (2초)</button>
-    <div class="hint">API 키 없이 휴대폰 마이크 접근 및 실제 소리 입력을 검사합니다. 먼저 말을 해 보세요.</div>
-    <div id="micTestResult" class="mic-test-result" aria-live="polite">테스트 전</div>
-  </div>
   <div class="field"><label>Groq API Key</label><input id="setKey" type="password" autocomplete="off" placeholder="gsk_...">
     <div class="hint">이 휴대폰 브라우저에만 저장됩니다. console.groq.com 에서 발급.</div></div>
   <div class="btns" style="margin:-4px 0 14px"><button class="btn" id="btnTest"><span class="led" id="led"></span>API 연결 테스트</button></div>
-
-  <div class="field" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border2)">
-    <label style="font-size:.9rem;color:#dbeafe">무료 인포그래픽 제작</label>
-    <div class="hint">추가 OpenAI API 키가 필요하지 않습니다. 회의 요약·HTML 인포그래픽은 기존 Groq 무료 한도 내에서 제작하고, 그림 인포그래픽은 ChatGPT 앱에 요청문을 전달해 생성합니다. ChatGPT 계정의 이미지 생성 이용 한도가 적용됩니다.</div>
-    <div class="warnbox" style="margin-top:9px">ChatGPT에 전달한 회의 내용은 외부 서비스로 전송됩니다. 회사 기밀은 전송 전에 검토하세요.</div>
-  </div>
   <div class="field"><label>회의 제목</label><input id="setTitle" placeholder="예: EV 배터리 트레이 협의"></div>
   <div class="row2">
     <div class="field"><label>상대 회사</label><input id="setPartnerCo"></div>
@@ -274,19 +259,17 @@ body.selecting .chk{display:flex}body.selecting .star{display:none}.msg.sel{outl
   <div id="recList"></div>
 </div>
 
-<!-- Existing GitHub feature: share the source-verified image prompt into ChatGPT -->
+<!-- ChatGPT image request (shown above the viewer) -->
 <div class="sheet top" id="sheetGpt">
   <div class="grab"></div>
-  <h3>🎨 ChatGPT 인포그래픽 요청</h3>
+  <h3>🎨 ChatGPT로 실사 인포그래픽 만들기</h3>
   <div class="warnbox" style="background:rgba(99,102,241,.12);border-color:rgba(129,140,248,.35);color:#c7d2fe">
-    회의 요약이 준비되었습니다. 아래 <b>ChatGPT 앱으로 보내기</b>를 누르고 공유 대상에서 ChatGPT를 선택하세요.<br>
-    별도 OpenAI API 결제는 없지만 ChatGPT 계정의 이미지 생성 이용 한도는 적용됩니다.
-    공유할 수 없으면 <b>요청문 복사</b> 후 ChatGPT 앱에 붙여넣으세요.
-  </div>
+    로그인된 내 ChatGPT(유료 플랜 권장)가 웹 검색으로 실물을 확인한 뒤 실사 스타일 인포그래픽을 만들어 줍니다. API 요금은 들지 않습니다.
+    <b>ChatGPT 앱으로 보내기</b> → 공유 목록에서 ChatGPT 선택 (앱이 찾은 실사 사진도 참고용으로 함께 보냅니다). 글자가 틀리면 "글자를 정확히 다시 그려줘"라고 요청하세요.</div>
   <pre id="gptText" style="white-space:pre-wrap;word-break:break-word;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:12px;font:inherit;font-size:.82rem;line-height:1.55;max-height:38dvh;overflow:auto;margin-bottom:12px"></pre>
   <div class="btns" style="flex-direction:column">
-    <button class="btn primary" id="gptShare">📤 ChatGPT 앱으로 보내기</button>
-    <div class="btns" style="margin-top:0"><button class="btn" id="gptCopy">📋 요청문 복사</button><button class="btn" id="gptWeb">🌐 ChatGPT 웹 열기</button></div>
+    <button class="btn primary" id="gptShare">🤖 ChatGPT 앱으로 보내기</button>
+    <div class="btns" style="margin-top:0"><button class="btn" id="gptCopy">📋 복사</button><button class="btn" id="gptWeb">🌐 ChatGPT 웹 열기</button></div>
   </div>
 </div>
 
@@ -301,15 +284,15 @@ body.selecting .chk{display:flex}body.selecting .star{display:none}.msg.sel{outl
 <div class="full" id="viewer">
   <div class="full-hd"><button class="icon-btn" id="viewerClose">✕</button><div class="t" id="viewerTitle"></div>
     <button class="icon-btn" id="viewerCancel" style="display:none" aria-label="취소">⏹</button>
-    <button class="icon-btn" id="viewerGpt" style="display:none" aria-label="ChatGPT로 보내기">🎨</button>
+    <button class="icon-btn" id="viewerGpt" style="display:none" aria-label="GPT 이미지로 만들기">🎨</button>
     <button class="icon-btn" id="viewerSave" aria-label="저장">💾</button>
     <button class="icon-btn" id="viewerShare" aria-label="공유">📤</button></div>
   <div class="full-bd" id="viewerBody"></div>
 </div>
 
+<div class="undo" id="undoBar"><span id="undoText"></span><button id="undoBtn">실행 취소</button></div>
 <input type="file" id="fileAudio" accept="audio/*,.m4a,.mp3,.wav,.aac" hidden>
 <div class="toast" id="toast"></div>
-<div class="undo" id="undoBar"><span id="undoText"></span><button id="undoBtn">실행 취소</button></div>
 
 <script>
 'use strict';
@@ -351,7 +334,6 @@ const DEFAULT_SETTINGS = {
   autoSend: true, liveMode: 'bi', glossaryCsv: null,
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, store.get('bmt.settings', {}));
-
 let messages = store.get('bmt.messages', []);
 let inputSide = 'our';
 
@@ -376,19 +358,11 @@ let glossary = [];
 function parseGlossary(csv) {
   const items = [];
   const lines = String(csv || '').replace(/^﻿/, '').split(/\r?\n/);
-  const LANG_WORD = /^(한국어|중국어|영어|독일어|일본어|korean|chinese|english|german|japanese|ko|zh|en|de|ja)$/i;
-  let first = true;
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 1; i < lines.length; i++) {          // skip header row
     const line = lines[i];
     if (!line.trim() || line.trim().startsWith('#')) continue;
     const cols = splitCsvLine(line);
     if (cols.length < 4) continue;
-    // 첫 데이터 줄이 "한국어,중국어,영어,독일어,일본어" 같은 머리글이면 그것만 건너뛴다.
-    // (예전처럼 무조건 첫 줄을 버리면 머리글 없는 CSV의 첫 용어가 사라진다)
-    if (first) {
-      first = false;
-      if (cols.every(c => LANG_WORD.test(c.trim()))) continue;
-    }
     items.push(cols.slice(0, 5).map(c => (c || '').trim()));
   }
   return items;
@@ -476,14 +450,8 @@ async function groqFetch(path, makeBody, { signal, timeoutMs = 60000, maxAttempt
       text = await res.text();
     } catch (e) {
       if (signal && signal.aborted) throw new Aborted();
-      // 타임아웃은 45~60초를 이미 기다렸으니 바로 알리고, 실시간 통역 쪽에서 재시도한다.
-      if (!e || e.name === 'TimeoutError' || e.name === 'AbortError') throw new Error('요청 시간이 초과되었습니다');
-      // 네트워크 오류(연결 끊김·DNS·로밍 전환)는 짧게 기다렸다 다시 시도한다 (예전엔 429만 재시도해서 한 번 끊기면 그대로 실패).
-      if (attempt >= 3) throw new Error('네트워크 오류: ' + (e.message || e));
-      t.done();                                   // 재시도 전에 타임아웃 타이머를 먼저 해제
-      onWait && onWait(800 * attempt);
-      try { await abortableSleep(800 * attempt, signal); } catch { throw new Aborted(); }
-      continue;
+      if (e && e.name === 'AbortError') throw new Error('요청 시간이 초과되었습니다');
+      throw new Error('네트워크 오류: ' + (e && e.message || e));
     } finally { t.done(); }
     if (res.status === 429 && attempt < maxAttempts) {
       const wait = retryDelayMs(text, attempt);
@@ -498,9 +466,8 @@ async function groqFetch(path, makeBody, { signal, timeoutMs = 60000, maxAttempt
 function abortableSleep(ms, signal) {
   return new Promise((resolve, reject) => {
     if (signal && signal.aborted) return reject(new Aborted());
-    const onAbort = () => { clearTimeout(t); reject(new Aborted()); };
-    const t = setTimeout(() => { signal && signal.removeEventListener('abort', onAbort); resolve(); }, ms);
-    signal && signal.addEventListener('abort', onAbort, { once: true });
+    const t = setTimeout(resolve, ms);
+    signal && signal.addEventListener('abort', () => { clearTimeout(t); reject(new Aborted()); }, { once: true });
   });
 }
 
@@ -575,17 +542,8 @@ async function translate(text, src, tgt, { signal, apiKey, long = false } = {}) 
   if (!text.trim() || src === tgt) return text;
   const p = protectTerms(text, src, tgt);
   const system = TRANSLATE_PROMPT.replace('{SOURCE_LANGUAGE}', LANGS[src].en).replace('{TARGET_LANGUAGE}', LANGS[tgt].en);
-  const call = () => chat({ system, user: p.text, signal, apiKey, long });
-  const guarded = Object.keys(p.placeholders).length > 0;
-  const hasToken = s => s.includes('§');                 // 복원 후에도 남은 토큰 = 모델이 토큰을 망침
-  const strip = s => s.replace(/§\s*\d*\s*§/g, ' ').replace(/§/g, ' ').replace(/\s{2,}/g, ' ').trim();
-  let out = restoreTerms(await call(), p.placeholders);
-  if (guarded && hasToken(out)) out = restoreTerms(await call(), p.placeholders);   // 1회 재시도
-  if (hasToken(out)) {
-    // 두 번 다 토큰이 남으면 용어 보호 없이 원문을 번역해 §가 화면에 남지 않게 한다.
-    out = strip(await chat({ system, user: text, signal, apiKey, long }));
-  }
-  return out;
+  const out = await chat({ system, user: p.text, signal, apiKey, long });
+  return restoreTerms(out, p.placeholders);
 }
 
 /* ---------------- messages ---------------- */
@@ -610,7 +568,8 @@ async function runTranslation(m) {
   while (translating >= 3) await new Promise(r => translateWaiters.push(r));
   translating++;
   try {
-    if (!messages.includes(m)) return;            // meeting was cleared while queued
+    // Deleted or cleared while queued: leave it retryable in case "실행 취소" brings it back.
+    if (!messages.includes(m)) { m.state = 'fail'; m.trans = '번역이 취소되었습니다'; return; }
     m.trans = await translate(m.orig, m.src, m.tgt); m.state = 'done';
   }
   catch (e) { m.trans = e.message || '번역 실패'; m.state = 'fail'; }
@@ -659,11 +618,12 @@ function renderAll() {
   chat.scrollTop = chat.scrollHeight;
 }
 
-
-/* ---------------- Select/delete/undo, preserved from current GitHub app ---------------- */
+/* ---------------- select & delete (long-press a card) ---------------- */
 let selecting = false;
 const selected = new Set();
+// Time until which a click is ignored: only the click that ends a long-press, never a later tap.
 let suppressClickUntil = 0;
+
 function enterSelect(firstId) {
   selecting = true; selected.clear();
   if (firstId) selected.add(firstId);
@@ -685,44 +645,56 @@ $('selAll').onclick = () => {
   if (selected.size === messages.length) selected.clear(); else messages.forEach(m => selected.add(m.id));
   refreshSelection();
 };
+
 let undoState = null, undoTimer = null;
 $('selDelete').onclick = () => {
   const removed = [];
-  messages.forEach((m, i) => { if (selected.has(m.id)) removed.push({m,i}); });
+  messages.forEach((m, i) => { if (selected.has(m.id)) removed.push({ m, i }); });
   if (!removed.length) return;
   messages = messages.filter(m => !selected.has(m.id));
   saveMessages(); exitSelect(); renderAll();
   undoState = removed;
   $('undoText').textContent = `${removed.length}개 문장을 삭제했습니다`;
   $('undoBar').classList.add('on');
-  clearTimeout(undoTimer); undoTimer = setTimeout(() => {$('undoBar').classList.remove('on');undoState=null;},7000);
+  clearTimeout(undoTimer); undoTimer = setTimeout(() => { $('undoBar').classList.remove('on'); undoState = null; }, 7000);
 };
 $('undoBtn').onclick = () => {
   if (!undoState) return;
-  for (const {m,i} of undoState) messages.splice(Math.min(i,messages.length),0,m);
-  undoState=null; clearTimeout(undoTimer); $('undoBar').classList.remove('on');
-  saveMessages();renderAll();toast('되돌렸습니다');
+  // Re-insert at the original positions (ascending, so earlier inserts don't shift later ones).
+  for (const { m, i } of undoState) messages.splice(Math.min(i, messages.length), 0, m);
+  undoState = null; clearTimeout(undoTimer); $('undoBar').classList.remove('on');
+  saveMessages(); renderAll(); toast('되돌렸습니다');
 };
-let pressTimer=null, pressStart=null;
+
+// Long-press (~0.5 s) on a card starts selection; moving the finger (scrolling) cancels it.
+let pressTimer = null, pressStart = null;
 $('chat').addEventListener('pointerdown', e => {
-  const card=e.target.closest('.msg'); if(!card||selecting) return;
-  pressStart={x:e.clientX,y:e.clientY};
-  pressTimer=setTimeout(()=>{
-    pressTimer=null;suppressClickUntil=Infinity;
-    if(navigator.vibrate) navigator.vibrate(30);
+  const card = e.target.closest('.msg'); if (!card || selecting) return;
+  pressStart = { x: e.clientX, y: e.clientY };
+  pressTimer = setTimeout(() => {
+    // Ignore clicks until this finger lifts (+700 ms then), however long it is held.
+    pressTimer = null; suppressClickUntil = Infinity;
+    if (navigator.vibrate) navigator.vibrate(30);
     enterSelect(card.dataset.id);
-  },500);
+  }, 500);
 });
-const cancelPress=()=>{clearTimeout(pressTimer);pressTimer=null;};
-$('chat').addEventListener('pointermove',e=>{if(pressTimer&&pressStart&&Math.hypot(e.clientX-pressStart.x,e.clientY-pressStart.y)>10)cancelPress();});
-$('chat').addEventListener('pointerup',()=>{cancelPress();if(suppressClickUntil===Infinity)suppressClickUntil=Date.now()+700;});
-$('chat').addEventListener('pointerleave',cancelPress);
-$('chat').addEventListener('pointercancel',()=>{cancelPress();suppressClickUntil=0;});
-$('chat').addEventListener('contextmenu',e=>{if(e.target.closest('.msg'))e.preventDefault();});
+const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; };
+$('chat').addEventListener('pointermove', e => { if (pressTimer && pressStart && Math.hypot(e.clientX - pressStart.x, e.clientY - pressStart.y) > 10) cancelPress(); });
+$('chat').addEventListener('pointerup', () => { cancelPress(); if (suppressClickUntil === Infinity) suppressClickUntil = Date.now() + 700; });
+$('chat').addEventListener('pointerleave', cancelPress);
+// A cancelled gesture produces no click, so nothing should stay suppressed.
+$('chat').addEventListener('pointercancel', () => { cancelPress(); suppressClickUntil = 0; });
+$('chat').addEventListener('contextmenu', e => { if (e.target.closest('.msg')) e.preventDefault(); });
 
 $('chat').addEventListener('click', e => {
-  if (Date.now()<suppressClickUntil) {suppressClickUntil=0;return;}
-  if (selecting) { const card=e.target.closest('.msg');if(!card)return;const id=card.dataset.id;if(selected.has(id))selected.delete(id);else selected.add(id);refreshSelection();return; }
+  if (Date.now() < suppressClickUntil) { suppressClickUntil = 0; return; }   // the click that ends a long-press
+  if (selecting) {
+    const card = e.target.closest('.msg'); if (!card) return;
+    const id = card.dataset.id;
+    if (selected.has(id)) selected.delete(id); else selected.add(id);
+    refreshSelection();
+    return;
+  }
   const r = e.target.closest('[data-retry]'); if (r) { const m = messages.find(x => x.id === r.dataset.retry); m && runTranslation(m); return; }
   const s = e.target.closest('[data-star]'); if (s) { const m = messages.find(x => x.id === s.dataset.star); if (m) { m.star = !m.star; renderMessage(m); saveMessages(); } return; }
   const b = e.target.closest('[data-big]'); if (b) { const m = messages.find(x => x.id === b.dataset.big); m && openBig(m); }
@@ -786,15 +758,14 @@ class Resampler {
 
 // Port of UtteranceSegmenter.cs (same constants), operating on 16 kHz Int16 samples.
 class Segmenter {
-  constructor(onUtterance, { calibrate = true } = {}) {
+  constructor(onUtterance) {
     this.on = onUtterance;
     this.F = SR / 1000 * 30;                       // 30 ms frames
     const f = ms => Math.floor(ms / 30);
-    Object.assign(this, { END: f(700), SOFTMAX: f(8000), SOFTSIL: f(250), HARDMAX: f(14000), MINCHUNK: f(800), MINSPEECH: f(250), PREROLL: f(300), HANG: f(300), CALIB: f(1200) });
+    Object.assign(this, { END: f(700), SOFTMAX: f(8000), SOFTSIL: f(250), HARDMAX: f(14000), MINCHUNK: f(800), MINSPEECH: f(250), PREROLL: f(300), HANG: f(300) });
     this.carry = new Int16Array(this.F); this.carryLen = 0;
     this.frames = []; this.speech = 0; this.silence = 0; this.total = 0; this.start = 0;
     this.noise = 200; this.sinceSpeech = 0;
-    this.calibrate = calibrate; this.calibFrames = 0; this.calibMin = Infinity;
   }
   get elapsedSec() { return this.total * 0.03; }
   write(samples) {
@@ -809,20 +780,8 @@ class Segmenter {
   frame(fr) {
     let sum = 0; for (let k = 0; k < fr.length; k++) sum += fr[k] * fr[k];
     const rms = Math.sqrt(sum / fr.length);
-    // 세션 시작 1.2초는 캘리브레이션: 이 구간에서 가장 조용한 프레임을 노이즈 플로어로 삼는다.
-    // 큰 상시 소음이 처음부터 들어와도 몇 초 안에 안정된다(예전엔 영원히 '발화'로 잠겼다).
-    if (this.calibrate && this.calibFrames < this.CALIB) {
-      this.calibFrames++;
-      this.calibMin = Math.min(this.calibMin, rms);
-      if (this.calibFrames === this.CALIB) this.noise = Math.max(60, Math.min(this.calibMin, 900));
-    }
-    // 문턱 = 플로어의 3배, 최소 350, 최대 1,500 — 소음이 아무리 커도 1,500 RMS 위만 발화로 본다.
-    const isSpeech = rms > Math.min(Math.max(this.noise * 3, 350), 1500);
-    if (isSpeech) {
-      this.sinceSpeech = 0;
-      // 발화 프레임도 아주 느리게(0.05%/프레임)만 플로어에 반영: 소음이 조금씩 커져도 문턱이 따라 올라간다.
-      this.noise = this.noise * 0.9995 + Math.min(rms, 1400) * 0.0005;
-    }
+    const isSpeech = rms > Math.max(this.noise * 3, 350);
+    if (isSpeech) this.sinceSpeech = 0;
     else if (++this.sinceSpeech > this.HANG) this.noise = this.noise * 0.98 + rms * 0.02;
     this.total++; this.frames.push(fr);
     if (isSpeech) { this.speech++; this.silence = 0; } else this.silence++;
@@ -860,26 +819,18 @@ class Mic {
   // Must be called from a tap handler: iOS only lets an AudioContext start in a user gesture.
   async start() {
     const AC = window.AudioContext || window.webkitAudioContext;
-    const problem = micEnvironmentIssue();
-    if (problem) throw new Error(problem);
-    if (!AC) throw new Error('이 브라우저는 Web Audio를 지원하지 않습니다. Chrome 또는 Safari에서 여세요.');
+    if (!AC || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+      throw new Error('이 브라우저에서는 마이크를 쓸 수 없습니다. https 주소로 열었는지 확인하세요.');
     this.ctx = new AC();
-    // Resume the audio context in the original tap handler before awaiting permissions.
-    const resume = this.ctx.resume().catch(() => {});
+    const resume = this.ctx.resume();
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     } catch (e) {
-      await this.ctx.close().catch(() => {});
-      this.ctx = null;
-      throw new Error(micErrorText(e));
+      this.ctx.close();
+      throw new Error(e && e.name === 'NotAllowedError' ? '마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크를 허용하세요.' : '마이크를 시작할 수 없습니다: ' + (e && e.message || e));
     }
     // Stopped while the permission prompt was open: don't leave the mic running.
-    if (this.stopped) {
-      this.stream.getTracks().forEach(t => t.stop());
-      if (this.ctx) this.ctx.close().catch(() => {});
-      this.stream = null;
-      throw new Aborted();
-    }
+    if (this.stopped) { this.stream.getTracks().forEach(t => t.stop()); this.ctx.close().catch(() => {}); throw new Aborted(); }
     await resume.catch(() => {});
     if (this.ctx.state !== 'running') { try { await this.ctx.resume(); } catch {} }
     if (this.ctx.state !== 'running') { this.stop(); throw new Error('오디오를 시작하지 못했습니다. 버튼을 다시 눌러 주세요.'); }
@@ -901,8 +852,6 @@ class Mic {
         worklet = true;
       } catch { worklet = false; }
     }
-    // The user may tap Stop while Worklet loading is still in progress.
-    if (this.stopped || !this.ctx) throw new Aborted();
     if (!worklet) {
       this.node = this.ctx.createScriptProcessor(4096, 1, 1);
       this.node.onaudioprocess = e => handle(e.inputBuffer.getChannelData(0));
@@ -924,79 +873,6 @@ class Mic {
     this.stream = this.ctx = this.node = this.src = null;
   }
 }
-
-/* ---------------- microphone permission and capture diagnostics ---------------- */
-function micEnvironmentIssue() {
-  if (!window.isSecureContext) {
-    return '마이크 차단: 현재 열기 방식(' + location.protocol + ')이 보안 연결이 아닙니다. HTTPS 주소의 Chrome에서 열어야 합니다.';
-  }
-  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-    return '마이크 API를 사용할 수 없습니다. ChatGPT/메신저/파일 미리보기가 아닌 Chrome 브라우저의 HTTPS 페이지로 열어 주세요.';
-  }
-  return '';
-}
-function micErrorText(e) {
-  const name = e && e.name || '';
-  const detail = e && e.message ? ' (' + e.message + ')' : '';
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError')
-    return '마이크 권한이 차단되었습니다. Android 설정 → 앱 → Chrome → 권한 → 마이크를 허용하고, Chrome 주소창의 사이트 권한도 확인하세요.' + detail;
-  if (name === 'NotFoundError' || name === 'DevicesNotFoundError')
-    return '사용할 수 있는 마이크를 찾지 못했습니다. 휴대폰 마이크/연결된 블루투스 기기를 확인하세요.' + detail;
-  if (name === 'NotReadableError' || name === 'TrackStartError' || name === 'AbortError')
-    return '다른 앱 사용 또는 기기 오류로 마이크를 열지 못했습니다. 통화/녹음 앱을 종료하고 다시 시도하세요.' + detail;
-  if (name === 'OverconstrainedError')
-    return '마이크 설정을 지원하지 않습니다. 기기의 브라우저를 업데이트해 주세요.' + detail;
-  return '마이크를 시작하지 못했습니다: ' + (name || '알 수 없음') + detail;
-}
-function updateMicEnvironment() {
-  const warning = micEnvironmentIssue();
-  const el = $('micAlert');
-  el.classList.toggle('on', !!warning);
-  el.textContent = warning;
-  return warning;
-}
-$('btnMicTest').onclick = async () => {
-  const btn = $('btnMicTest'), result = $('micTestResult');
-  const fail = m => { result.className = 'mic-test-result fail'; result.textContent = '실패: ' + m; };
-  const issue = updateMicEnvironment();
-  if (issue) return fail(issue);
-  if (ptt || live) return fail('진행 중인 녹음/통역을 먼저 중지하세요.');
-  btn.disabled = true;
-  result.className = 'mic-test-result';
-  result.textContent = '권한을 요청하고 있습니다. 허용한 뒤 소리 내어 말씀하세요.';
-  let stream = null, ctx = null;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) throw new Error('Web Audio 기능을 지원하지 않는 브라우저입니다.');
-    ctx = new AC();
-    const source = ctx.createMediaStreamSource(stream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    source.connect(analyser);
-    await ctx.resume();
-    const data = new Float32Array(analyser.fftSize);
-    let peak = 0;
-    const endsAt = performance.now() + 2000;
-    while (performance.now() < endsAt) {
-      analyser.getFloatTimeDomainData(data);
-      let power = 0;
-      for (let i = 0; i < data.length; i++) power += data[i] * data[i];
-      peak = Math.max(peak, Math.sqrt(power / data.length));
-      result.textContent = '마이크 연결 성공 — 음성 확인 중... (최대 레벨 ' + Math.round(peak * 100) + '%)';
-      await sleep(100);
-    }
-    result.className = 'mic-test-result success';
-    result.textContent = peak > 0.008
-      ? '마이크 정상: 권한 허용 + 음성 신호 수신 성공 (' + Math.round(peak * 100) + '%). 이제 음성 버튼을 사용하세요.'
-      : '권한 및 마이크 연결은 성공했습니다. 다만 2초간 소리가 거의 감지되지 않았습니다. 휴대폰 마이크 음소거/연결 장치를 확인하고 큰 소리로 다시 테스트하세요.';
-  } catch (e) { fail(micErrorText(e)); }
-  finally {
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    if (ctx) await ctx.close().catch(() => {});
-    btn.disabled = false;
-  }
-};
 
 /* ---------------- screen wake lock (a locked phone stops the mic) ---------------- */
 let wakeLock = null, wantWake = false;
@@ -1122,7 +998,7 @@ async function startLive() {
   const s = {
     id: 'rec-' + startedAt.getTime(), startedAt, queue: [], wake: null, block: [], blockLen: 0, blockIndex: 0,
     samples: 0, pending: 0, error: null, gap: false, lines: [], stopping: false, session: Symbol('live'),
-    ctl: new AbortController(), writes: Promise.resolve(), storeFailed: false, metaTick: 0,
+    ctl: new AbortController(), writes: Promise.resolve(), storeFailed: false,
   };
   s.name = `${stamp(startedAt)}_${safeName(settings.partnerCo)}`;
   s.seg = new Segmenter(u => {
@@ -1148,18 +1024,10 @@ async function startLive() {
   if (live !== s || s.stopping) { s.mic.stop(); return; }
   recDb.putMeta(metaOf(s)).catch(() => { s.storeFailed = true; });
   acquireWake();
-  // 저장 공간이 부족하면 브라우저가 이 오리진의 IndexedDB(회의 녹음)를 회수할 수 있다 → 영구 저장을 요청.
-  if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persist().then(ok => {
-      if (!ok) toast('ℹ 저장 공간이 부족하면 녹음이 지워질 수 있습니다 — 중요한 녹음은 💾로 바로 저장하세요', 5000);
-    }).catch(() => {});
-  }
   s.timer = setInterval(() => {
     // Watchdog: the track can stay "live" while audio processing has silently stopped.
     if (!s.stopping && performance.now() - s.mic.lastPcm > 4000) { s.gap = true; s.warn = '마이크 입력이 멈췄습니다 — 화면을 켜 두세요'; s.mic.resume(); }
     else if (s.warn && performance.now() - s.mic.lastPcm < 1500 && s.mic.ctx && s.mic.ctx.state === 'running') s.warn = null;
-    // 10초마다 메타(길이·대본) 갱신: 앱이 강제 종료되거나 폰이 꺼져도 목록이 "0초"로 남지 않는다.
-    if (++s.metaTick % 10 === 0) recDb.putMeta(metaOf(s)).catch(() => {});
     refreshLive();
   }, 1000);
   refreshLive();
@@ -1167,7 +1035,7 @@ async function startLive() {
 }
 
 function metaOf(s) {
-  return { id: s.id, name: s.name, startedAt: s.startedAt.toISOString(), samples: s.samples, lines: s.lines, complete: !!s.complete, gap: !!s.gap, failed: s.failed || 0, partner: settings.partnerCo || '' };
+  return { id: s.id, name: s.name, startedAt: s.startedAt.toISOString(), samples: s.samples, lines: s.lines, complete: !!s.complete, partner: settings.partnerCo || '' };
 }
 
 function onLivePcm(s, pcm) {
@@ -1186,11 +1054,7 @@ function flushBlock(s) {
   const pcm = new Int16Array(s.blockLen); let o = 0; for (const c of s.block) { pcm.set(c, o); o += c.length; }
   s.block = []; s.blockLen = 0;
   const index = s.blockIndex++;
-  s.writes = s.writes.then(() => recDb.putBlock(s.id, index, pcm)).catch(() => {
-    s.storeFailed = true;
-    // 실패를 회의 끝까지 숨기지 않는다: 첫 실패만 즉시 알리고 이후 반복 알림은 막는다.
-    if (!s.storeWarned) { s.storeWarned = true; toast('⚠ 녹음 저장 실패 — 저장 공간을 확인하세요', 5000); }
-  });
+  s.writes = s.writes.then(() => recDb.putBlock(s.id, index, pcm)).catch(() => { s.storeFailed = true; });
 }
 
 async function consumeLive(s) {
@@ -1206,17 +1070,7 @@ async function consumeLive(s) {
     try { r = await transcribe(wavBlob(u.pcm), mode === 'partner' ? partner : null, { signal: s.ctl.signal }); s.error = null; }
     catch (e) {
       if (e instanceof Aborted) return;
-      u.tries = (u.tries || 0) + 1;
-      s.error = e.message;
-      if (u.tries < 3) {
-        // 실패한 발화를 큐 맨 앞으로 되돌려 다시 시도한다 (예전엔 그대로 버려져 영구 유실).
-        s.queue.unshift(u); s.pending = s.queue.length; refreshLive();
-        try { await abortableSleep(1200 * u.tries, s.ctl.signal); } catch { return; }
-        continue;
-      }
-      // 3회 모두 실패: 이 발화만 포기하고 계속 듣는다. 녹음에는 남아 있어 나중에 다시 뽑을 수 있다.
-      s.failed = (s.failed || 0) + 1;
-      s.error = `${e.message} · 미인식 ${s.failed}건`; s.pending = s.queue.length; refreshLive(); continue;
+      s.error = e.message; s.gap = true; s.pending = s.queue.length; refreshLive(); continue;
     }
     s.pending = s.queue.length;
     if (live !== s && !s.stopping) return;
@@ -1224,8 +1078,7 @@ async function consumeLive(s) {
     let speaker, src;
     if (mode === 'partner') { speaker = 'partner'; src = partner; }
     else if (r.lang === our) { speaker = 'our'; src = our; }
-    // 자동 모드: 판별 언어가 우리말·상대말 중 하나면 그대로, 아니면 설정된 상대 언어로 고정한다.
-    else { speaker = 'partner'; src = [our, partner].includes(r.lang) ? r.lang : partner; }
+    else { speaker = 'partner'; src = r.lang || partner; }   // translate from what was actually spoken
     const tgt = speaker === 'our' ? partner : our;
     s.lines.push(`[${hms(u.offsetSec)}] [${LANGS[src].code}] ${r.text}`);
     addMessage({ speaker, src, tgt, text: r.text, at: new Date(s.startedAt.getTime() + u.offsetSec * 1000) });
@@ -1263,7 +1116,6 @@ function refreshLive() {
   const backlog = s.queue.reduce((a, u) => a + u.durationSec, 0);
   if (backlog > 60) t += ` · ⚠ 인식 지연 ${Math.round(backlog)}초 (네트워크 확인)`;
   if (s.skipped) t += ` · ⚠ 지연으로 ${s.skipped}개 발화 건너뜀(녹음엔 있음)`;
-  if (s.failed) t += ` · ⚠ 미인식 ${s.failed}건(녹음엔 있음)`;
   if (s.warn) t += ` · ⚠ ${s.warn}`;
   if (s.error) t += ` · ⚠ ${s.error}`;
   $('liveText').textContent = t;
@@ -1353,10 +1205,17 @@ const NOTES_PROMPT = 'You are a meticulous meeting note-taker for automotive/man
   '\nSummarize this part of the transcript as concise Korean bullet notes. Each bullet starts with the [hh:mm:ss] timestamp it is based on. ' +
   'Capture topics, figures (numbers with units), explicit decisions, requests, action items with any stated owner/date, and open issues. Output only the bullets.';
 
+// Keep in sync with RecordingSummaryService.VisualsRules (desktop).
+const VISUALS_RULES = 'visuals: 3-4 slots for real photographs of the main hardware, material, process or setting discussed ' +
+  '(the first one is the cover photo). caption: short Korean caption. query: 2-3 common English words that would appear in the ' +
+  'file name of a real photo on Wikimedia Commons (e.g. "axial flux motor", "electrical steel", "stator winding"). broad_query: a more general English fallback of at least 2 words ' +
+  '(e.g. "electric motor", "test bench"). scene: one English sentence describing a photorealistic photo of it (subject, setting, lighting). ' +
+  'query and broad_query: all lowercase plain words, no digits or symbols. query, broad_query and scene must use only generic technical terms: never company, customer, person, product-code or project names, and no figures.';
+
 const INFO_PROMPT = 'You are a business meeting analyst producing data for a one-page infographic.\n' + GROUNDING +
   '\nFill the JSON schema from the material provided. Keep each text item short (one line, max ~80 Korean characters). ' +
   'Use empty arrays when there is nothing to report. "time" fields are the supporting [hh:mm:ss] timestamp without brackets, or null. ' +
-  'key_points: 3-7 items. timeline: 3-8 major topic shifts in order.';
+  'key_points: 3-7 items. timeline: 3-8 major topic shifts in order.\n' + VISUALS_RULES;
 
 const S = () => ({ type: 'string' }), N = () => ({ type: ['string', 'null'] });
 const OBJ = props => ({ type: 'object', properties: props, required: Object.keys(props), additionalProperties: false });
@@ -1369,6 +1228,7 @@ const INFO_SCHEMA = OBJ({
   numbers: ARR(OBJ({ label: S(), value: S(), time: N() })),
   timeline: ARR(OBJ({ time: N(), topic: S() })),
   open_issues: ARR(S()), next_steps: ARR(S()),
+  visuals: ARR(OBJ({ caption: S(), query: S(), broad_query: S(), scene: S() })),
 });
 
 const wrapT = t => '<transcript>\n' + t + '\n</transcript>';
@@ -1402,7 +1262,99 @@ function normalizeInfo(d) {
     timeline: arr(d.timeline).filter(x => x && has(x.topic)),
     open_issues: arr(d.open_issues).filter(has),
     next_steps: arr(d.next_steps).filter(has),
+    visuals: arr(d.visuals).filter(x => x && (has(x.query) || has(x.broad_query))).slice(0, 4)
+      .map(x => ({ caption: has(x.caption) ? x.caption.trim() : '', query: has(x.query) ? x.query.trim() : '',
+        broad_query: has(x.broad_query) ? x.broad_query.trim() : '', scene: has(x.scene) ? x.scene.trim() : '' })),
   };
+}
+
+/* ---- real photos (Wikimedia Commons). Only the generic English search words leave the device. ---- */
+const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
+const htmlToText = s => (new DOMParser().parseFromString(String(s || ''), 'text/html').body.textContent || '').replace(/\s+/g, ' ').trim();
+
+function timedSignal(parent, ms) {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+  const stop = () => c.abort();
+  if (parent) { if (parent.aborted) c.abort(); else parent.addEventListener('abort', stop, { once: true }); }
+  return { signal: c.signal, done: () => { clearTimeout(t); if (parent) parent.removeEventListener('abort', stop); } };
+}
+
+// Every search word must appear in the file title (full-text search also matches long
+// descriptions and returns unrelated files); archive scans and book pages are excluded.
+// Keep in sync with CommonsPhotoService.BuildSearch (desktop).
+const COMMONS_EXCLUDE = ' -intitle:NARA -intitle:"Industries of War" -intitle:page -intitle:volume -intitle:plate -intitle:diaries -intitle:cyclopedia';
+// The search leaves the device, so it is enforced in code rather than trusted to the prompt:
+// only plain lowercase words. A query with anything else (capitals, digits, symbols: names,
+// product codes, project numbers) is skipped whole, as is a one-word query ("dynamometer"
+// alone finds railway cars).
+function commonsQuery(query) {
+  const words = String(query || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 4 || !words.every(w => /^[a-z]{2,20}$/.test(w))) return '';
+  return words.map(w => 'intitle:' + w).join(' ') + COMMONS_EXCLUDE + ' filetype:bitmap';
+}
+
+// Landscape JPEG photos (diagrams/logos are mostly PNG/SVG), large enough for a cover.
+// Returns null when Wikimedia rate-limits us, so the caller stops searching.
+async function commonsSearch(query, signal) {
+  const search = commonsQuery(query);
+  if (!search) return [];
+  const q = new URLSearchParams({ action: 'query', format: 'json', origin: '*', generator: 'search', gsrnamespace: '6',
+    gsrsearch: search, gsrlimit: '15', prop: 'imageinfo', iiprop: 'url|mime|size|extmetadata',
+    iiurlwidth: '1200', iiextmetadatafilter: 'Artist|LicenseShortName' });
+  const t = timedSignal(signal, 12000);
+  try {
+    const r = await fetch(COMMONS_API + '?' + q, { signal: t.signal });
+    if (r.status === 429) return null;
+    if (!r.ok) return [];
+    const j = await r.json();
+    return Object.values((j.query && j.query.pages) || {}).sort((a, b) => (a.index || 0) - (b.index || 0)).map(p => {
+      const ii = p.imageinfo && p.imageinfo[0];
+      if (!ii || ii.mime !== 'image/jpeg' || !ii.thumburl || ii.width < 900 || ii.width < ii.height * 1.15 || ii.width > ii.height * 2.4) return null;
+      const m = ii.extmetadata || {};
+      return { title: String(p.title || '').replace(/^File:/, '').replace(/\.[^.]+$/, ''), thumb: ii.thumburl, artist: htmlToText(m.Artist && m.Artist.value).slice(0, 80),
+        license: htmlToText(m.LicenseShortName && m.LicenseShortName.value).slice(0, 40) };
+    }).filter(Boolean);
+  } catch (e) { if (signal && signal.aborted) throw new Aborted(); return []; }
+  finally { t.done(); }
+}
+
+// Returns 'limited' when Wikimedia rate-limits us, null when this photo is unusable.
+async function downloadPhoto(c, signal) {
+  if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\//.test(c.thumb)) return null;
+  const t = timedSignal(signal, 20000);
+  try {
+    const r = await fetch(c.thumb, { signal: t.signal });
+    if (r.status === 429) return 'limited';
+    const blob = r.ok ? await r.blob() : null;
+    if (!blob || blob.type !== 'image/jpeg' || blob.size > 3e6) return null;
+    const src = await new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(f.result); f.onerror = rej; f.readAsDataURL(blob); });
+    return { ...c, blob, src };
+  } catch (e) { if (signal && signal.aborted) throw new Aborted(); return null; }
+  finally { t.done(); }
+}
+
+// One photo per visual slot (query, then broad_query), no photo used twice. Never fails the
+// infographic: a slot without a usable photo is simply left out.
+async function findPhotos(visuals, job) {
+  if (!visuals.length) return [];
+  job.progress('웹에서 실사 사진을 찾는 중...');
+  const used = new Set(), out = [];
+  search: for (const v of visuals) {
+    let photo = null;
+    for (const q of [v.query, v.broad_query]) {
+      const found = await commonsSearch(q, job.signal);
+      if (!found) break search;
+      for (const c of found.filter(c => !used.has(c.thumb)).slice(0, 2)) {
+        used.add(c.thumb);
+        photo = await downloadPhoto(c, job.signal);
+        if (photo === 'limited') break search;
+        if (photo) break;
+      }
+      if (photo) break;
+    }
+    if (photo) out.push({ ...photo, caption: v.caption, scene: v.scene });
+  }
+  return out;
 }
 
 // Long transcripts are condensed into timestamped notes part by part, repeating on the
@@ -1439,158 +1391,207 @@ async function summarizeToInfo(transcript, job) {
   catch { throw new Error('요약 형식 오류 — 다시 시도해 주세요'); }
 }
 
-
-/* ==================== FREE CHATGPT IMAGE WORKFLOW ==================== */
-// A public static web app cannot call the consumer ChatGPT image feature as a free API.
-// We reuse the existing Groq transcript summarizer, then deliver a grounded image
-// creation prompt to the user's own ChatGPT account through the system share sheet.
-async function freeMakeInfographic(transcript, meta, baseName, job) {
-  // Reuse the HTML infographic and all transcript-grounding logic (no extra API).
-  await makeInfographic(transcript, meta, baseName, job);
-  if (!viewerData || !viewerData.gptPrompt) return;
-  $('gptText').textContent = viewerData.gptPrompt;
-  openSheet('sheetGpt', true);
-}
-async function freeInfoFromChat() {
-  if (!messages.length) return toast('먼저 통역 또는 텍스트 대화를 입력하세요');
-  if (!settings.apiKey) return toast('요약을 위해 Groq API 키가 필요합니다 (무료 한도 사용)');
-  const job = openJob('무료 ChatGPT 인포그래픽', '회의 대본을 정리하는 중...');
-  try {
-    const first = new Date(messages[0].at);
-    const transcript = messages.map(m => `[${hm(new Date(m.at))}] [${LANGS[m.src].code}] ${m.orig}`).join('\n');
-    await freeMakeInfographic(transcript,
-      { date: first.toLocaleString('ko-KR'), source: settings.title || '현재 대화', duration: '' },
-      `${today()}_${safeName(settings.partnerCo)}`, job);
-  } catch(e) { job.fail(e); }
-}
-
-/* ---- infographic HTML (same design as InfographicRenderer.cs; values text-only, escaped) ---- */
-const INFO_CSS = `:root{--ink:#0f172a;--sub:#64748b;--line:#e2e8f0;--bg:#f1f5f9;--card:#fff;--blue:#2563eb;--green:#16a34a;--violet:#7c3aed;--amber:#d97706}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard","Malgun Gothic","Apple SD Gothic Neo","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.page{max-width:1080px;margin:0 auto;padding:22px 16px 36px}
-.hero{background:linear-gradient(135deg,#0b3b8c 0%,#1d6fe0 55%,#38bdf8 100%);color:#fff;border-radius:20px;padding:24px 22px;box-shadow:0 10px 30px rgba(29,111,224,.25)}
-.eyebrow{font-size:11px;letter-spacing:.18em;opacity:.8;font-weight:700}h1{margin:6px 0 8px;font-size:26px;line-height:1.25;word-break:keep-all}
-.lead{margin:0 0 14px;font-size:15.5px;opacity:.95;word-break:keep-all}.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 12px;font-size:12.5px;overflow-wrap:anywhere}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
-.stat{background:var(--card);border-radius:16px;padding:14px 16px;border-top:4px solid;box-shadow:0 2px 8px rgba(15,23,42,.06)}
-.stat-value{font-size:28px;font-weight:800;line-height:1.1}.stat-label{color:var(--sub);font-size:12.5px;margin-top:4px}
-.stat.blue{border-color:var(--blue)}.stat.blue .stat-value{color:var(--blue)}.stat.green{border-color:var(--green)}.stat.green .stat-value{color:var(--green)}
-.stat.violet{border-color:var(--violet)}.stat.violet .stat-value{color:var(--violet)}.stat.amber{border-color:var(--amber)}.stat.amber .stat-value{color:var(--amber)}
-.card{background:var(--card);border-radius:18px;padding:18px 18px;margin-bottom:14px;box-shadow:0 2px 10px rgba(15,23,42,.06);break-inside:avoid}
-.card h2{margin:0 0 12px;font-size:16.5px;display:flex;align-items:center;gap:8px}
-.ico{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#eef2ff;font-size:16px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}.grid2>.card,.stack>.card{margin-bottom:0}.stack{display:grid;gap:14px;align-content:start}
-.numbers{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.num{background:linear-gradient(180deg,#f8fafc,#eef4ff);border:1px solid #dbe6ff;border-radius:14px;padding:12px}
-.num-value{font-size:21px;font-weight:800;color:#1d4ed8;overflow-wrap:anywhere}.num-label{font-size:12.5px;color:var(--sub);margin-top:2px}
-ol.points{margin:0;padding:0;list-style:none;counter-reset:p}ol.points li{counter-increment:p;position:relative;padding:8px 0 8px 38px;border-bottom:1px dashed var(--line)}
-ol.points li:last-child{border-bottom:0}ol.points li::before{content:counter(p);position:absolute;left:0;top:8px;width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center}
+/* ---- infographic HTML: photo-led report layout (same design as InfographicRenderer.cs). Text values are
+   escaped and only placed in element text or alt; images are data: URIs validated as base64 JPEG. ---- */
+const INFO_CSS = `:root{--ink:#0b1220;--sub:#5b6474;--line:#e5e8ee;--bg:#eceff3;--card:#fff;--navy:#0b1f3a;--accent:#f26b1d;--green:#15803d;--amber:#b45309}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard","Malgun Gothic","Apple SD Gothic Neo","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{max-width:1080px;margin:0 auto;padding:20px 16px 36px}
+.hero{position:relative;border-radius:22px;overflow:hidden;background:linear-gradient(135deg,#0b1f3a,#16365f 60%,#1e4e8c);color:#fff;min-height:260px;display:flex;align-items:flex-end;box-shadow:0 18px 40px rgba(11,31,58,.28);break-inside:avoid}
+.hero.photo{min-height:min(64vw,480px)}.hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hero.photo::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,14,30,.08) 0%,rgba(6,14,30,.35) 42%,rgba(6,14,30,.93) 100%)}
+.hero-in{position:relative;z-index:1;padding:26px 24px 22px;width:100%}
+.eyebrow{display:inline-block;font-size:11px;letter-spacing:.2em;font-weight:800;background:var(--accent);padding:4px 10px;border-radius:4px}
+h1{margin:12px 0 8px;font-size:32px;line-height:1.22;font-weight:800;word-break:keep-all;text-shadow:0 2px 14px rgba(0,0,0,.4)}
+.lead{margin:0 0 14px;font-size:16px;opacity:.95;word-break:keep-all;max-width:780px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:4px 12px;font-size:12.5px;overflow-wrap:anywhere}
+.hero-credit{position:absolute;z-index:1;top:10px;right:12px;font-size:10.5px;color:rgba(255,255,255,.85);background:rgba(0,0,0,.4);padding:2px 9px;border-radius:999px;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr));gap:12px;margin:16px 0}
+.kpi{background:var(--card);border-radius:16px;padding:16px 18px 14px 22px;position:relative;overflow:hidden;box-shadow:0 2px 10px rgba(11,18,32,.06);break-inside:avoid}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+.kpi-value{font-size:28px;font-weight:800;color:var(--navy);line-height:1.15;overflow-wrap:anywhere;letter-spacing:-.01em}.kpi-label{font-size:12.5px;color:var(--sub);margin-top:4px}
+.card{background:var(--card);border-radius:18px;padding:20px;margin-bottom:14px;box-shadow:0 2px 10px rgba(11,18,32,.06);break-inside:avoid}
+.card h2{margin:0 0 12px;font-size:17px;font-weight:800;display:flex;align-items:center;gap:10px;color:var(--navy)}
+.card h2::before{content:"";flex:none;width:4px;height:18px;border-radius:2px;background:var(--accent)}
+.feature{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);padding:0;overflow:hidden}.feature .body{padding:20px}
+figure{margin:0;position:relative;overflow:hidden;background:#0b1220}figure img{display:block;width:100%;height:100%;object-fit:cover}
+.feature figure{min-height:280px}
+figcaption{position:absolute;left:0;right:0;bottom:0;padding:30px 14px 10px;color:#fff;font-size:13.5px;font-weight:700;background:linear-gradient(180deg,transparent,rgba(0,0,0,.8));word-break:keep-all}
+figcaption small{display:block;font-weight:400;font-size:10.5px;opacity:.78;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:12px;margin-bottom:14px}
+.gallery figure{border-radius:16px;aspect-ratio:3/2;box-shadow:0 2px 10px rgba(11,18,32,.12);break-inside:avoid}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-bottom:14px}.grid2>.card{margin-bottom:0}
+ol.points{margin:0;padding:0;list-style:none;counter-reset:p}ol.points li{counter-increment:p;position:relative;padding:9px 0 9px 40px;border-bottom:1px solid var(--line)}
+ol.points li:last-child{border-bottom:0}ol.points li::before{content:counter(p,decimal-leading-zero);position:absolute;left:0;top:9px;font-weight:800;font-size:15px;color:var(--accent);font-variant-numeric:tabular-nums}
 ul{margin:0;padding:0;list-style:none}ul li{padding:7px 0 7px 28px;position:relative;overflow-wrap:anywhere}
-ul.checks li::before{content:"✓";position:absolute;left:0;top:7px;width:20px;height:20px;border-radius:6px;background:#dcfce7;color:var(--green);font-weight:800;font-size:13px;display:grid;place-items:center}
-ul.issues li::before{content:"!";position:absolute;left:0;top:7px;width:20px;height:20px;border-radius:50%;background:#fef3c7;color:var(--amber);font-weight:800;font-size:13px;display:grid;place-items:center}
-ul.next li::before{content:"→";position:absolute;left:2px;top:6px;color:var(--violet);font-weight:800}
-.ts{display:inline-block;margin-left:6px;font-size:11px;color:var(--sub);background:#f1f5f9;border-radius:6px;padding:0 6px;font-variant-numeric:tabular-nums;white-space:nowrap}
-table.actions{width:100%;border-collapse:collapse;font-size:14px}table.actions th{text-align:left;color:var(--sub);font-weight:600;font-size:12.5px;padding:8px;border-bottom:2px solid var(--line)}
+ul.checks li::before{content:"✓";position:absolute;left:0;top:8px;width:20px;height:20px;border-radius:6px;background:#dcfce7;color:var(--green);font-weight:800;font-size:13px;display:grid;place-items:center}
+ul.issues li::before{content:"!";position:absolute;left:0;top:8px;width:20px;height:20px;border-radius:50%;background:#fef3c7;color:var(--amber);font-weight:800;font-size:13px;display:grid;place-items:center}
+ul.next li::before{content:"→";position:absolute;left:2px;top:6px;color:var(--accent);font-weight:800}
+.ts{display:inline-block;margin-left:6px;font-size:11px;color:var(--sub);background:#f1f3f6;border-radius:6px;padding:0 6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.actions{width:100%;border-collapse:collapse;font-size:14px}table.actions th{text-align:left;color:var(--sub);font-weight:600;font-size:12.5px;padding:8px;border-bottom:2px solid var(--navy)}
 table.actions td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
-table.actions td:nth-child(2),table.actions td:nth-child(3){white-space:nowrap;width:1%}
-.badge{background:#ede9fe;color:var(--violet);border-radius:999px;padding:2px 10px;font-weight:600;font-size:12.5px}.tbd{color:#94a3b8;font-size:12.5px}
-ul.timeline{position:relative;padding-left:4px}ul.timeline li{display:grid;grid-template-columns:76px 1fr;gap:12px;padding:6px 0 12px 0}
-ul.timeline li::before{content:"";position:absolute;left:86px;width:2px;top:0;bottom:0;background:var(--line)}
-.tl-time{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:700;font-size:13px;padding-top:1px}
-.tl-topic{position:relative;padding-left:14px}.tl-topic::before{content:"";position:absolute;left:-10px;top:7px;width:10px;height:10px;border-radius:50%;background:#fff;border:3px solid var(--blue);z-index:1}
-.empty{color:#94a3b8;margin:0}footer{color:var(--sub);font-size:12px;text-align:center;margin-top:18px}
-@media (max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}h1{font-size:22px}}
-@media print{body{background:#fff}.page{padding:0}.card,.stat{box-shadow:none;border:1px solid var(--line)}.hero{box-shadow:none}@page{size:A4;margin:12mm}}`;
+table.actions td:nth-child(2),table.actions td:nth-child(3){width:22%;word-break:keep-all}
+.badge{background:#fff1e8;color:#c2410c;border-radius:999px;padding:2px 10px;font-weight:700;font-size:12.5px}.tbd{color:#94a3b8;font-size:12.5px}
+ul.timeline li{display:grid;grid-template-columns:72px 1fr;gap:12px;padding:6px 0 10px}
+.tl-time{font-variant-numeric:tabular-nums;color:var(--navy);font-weight:800;font-size:13px;padding-top:1px}
+.tl-topic{position:relative;padding-left:16px;border-left:2px solid var(--line)}.tl-topic::before{content:"";position:absolute;left:-7px;top:7px;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+footer{color:var(--sub);font-size:12px;text-align:center;margin-top:18px}.credits{margin-top:6px;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+@media (max-width:760px){.grid2,.feature{grid-template-columns:minmax(0,1fr)}.feature figure{min-height:0;aspect-ratio:3/2}h1{font-size:24px}.hero-in{padding:20px 18px 18px}}
+@media print{body{background:#fff}.page{padding:0}.card,.kpi{box-shadow:none;border:1px solid var(--line)}.hero{box-shadow:none}@page{size:A4;margin:12mm}}`;
 
-function renderInfographic(d, meta) {
+const JPEG_DATA = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
+const photoCredit = p => [p.artist, p.license].filter(Boolean).join(' · ') || 'Wikimedia Commons';
+
+function renderInfographic(d, meta, photos = []) {
   const E = esc, TS = t => t ? `<span class="ts">${E(t)}</span>` : '';
-  const stat = (v, l, c) => `<div class="stat ${c}"><div class="stat-value">${v}</div><div class="stat-label">${E(l)}</div></div>`;
-  const list = (icon, title, items, cls) => `<section class="card"><h2><span class="ico">${icon}</span>${E(title)}</h2>` +
-    (items.length ? `<ul class="${cls}">${items.map(i => `<li>${E(i)}</li>`).join('')}</ul>` : '<p class="empty">해당 없음</p>') + '</section>';
+  const ph = photos.filter(p => p && JPEG_DATA.test(p.src));
+  // Without key points there is no feature card, so the second photo joins the gallery.
+  const hero = ph[0], feat = d.key_points.length ? ph[1] : null, gal = ph.slice(feat ? 2 : 1);
+  const img = p => `<img src="${p.src}" alt="${E(p.caption || p.title)}">`;
+  const fig = p => `<figure>${img(p)}<figcaption>${E(p.caption || p.title)}<small>실사 사진 · ${E(photoCredit(p))}</small></figcaption></figure>`;
+  const card = (title, inner) => `<section class="card"><h2>${E(title)}</h2>${inner}</section>`;
+  const row = cards => cards.length === 2 ? `<div class="grid2">${cards.join('')}</div>` : cards.join('');
+  const list = (cls, items) => `<ul class="${cls}">${items.map(i => `<li>${E(i)}</li>`).join('')}</ul>`;
+
   let h = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${E(d.title)}</title><style>${INFO_CSS}</style></head><body><main class="page">`;
-  h += `<header class="hero"><div class="eyebrow">MEETING INFOGRAPHIC</div><h1>${E(d.title)}</h1>` + (d.one_line_summary ? `<p class="lead">${E(d.one_line_summary)}</p>` : '');
-  h += `<div class="chips"><span class="chip">📅 ${E(meta.date)}</span>` + (meta.duration ? `<span class="chip">⏱ ${E(meta.duration)}</span>` : '') + `<span class="chip">🎙 ${E(meta.source)}</span></div></header>`;
-  h += `<section class="stats">${stat(d.key_points.length, '핵심 논의', 'blue')}${stat(d.decisions.length, '결정 사항', 'green')}${stat(d.action_items.length, '액션 아이템', 'violet')}${stat(d.open_issues.length, '미결 사항', 'amber')}</section>`;
-  if (d.numbers.length) h += `<section class="card"><h2><span class="ico">📊</span>주요 수치</h2><div class="numbers">${d.numbers.map(n => `<div class="num"><div class="num-value">${E(n.value)}</div><div class="num-label">${E(n.label)}</div>${TS(n.time)}</div>`).join('')}</div></section>`;
-  h += `<div class="grid2"><section class="card"><h2><span class="ico">💡</span>핵심 논의</h2>` +
-    (d.key_points.length ? `<ol class="points">${d.key_points.map(p => `<li><span>${E(p.text)}</span>${TS(p.time)}</li>`).join('')}</ol>` : '<p class="empty">해당 없음</p>') + '</section>';
-  h += `<section class="card"><h2><span class="ico">✅</span>결정 사항</h2>` +
-    (d.decisions.length ? `<ul class="checks">${d.decisions.map(p => `<li><span>${E(p.text)}</span>${TS(p.time)}</li>`).join('')}</ul>` : '<p class="empty">명확히 합의된 결정 없음</p>') + '</section></div>';
-  h += `<section class="card"><h2><span class="ico">📌</span>액션 아이템</h2>` + (d.action_items.length
-    ? `<table class="actions"><thead><tr><th>할 일</th><th>담당</th><th>기한</th></tr></thead><tbody>${d.action_items.map(a =>
-      `<tr><td>${E(a.task)} ${TS(a.time)}</td><td>${a.owner ? `<span class="badge">${E(a.owner)}</span>` : '<span class="tbd">미지정</span>'}</td><td>${a.due ? E(a.due) : '<span class="tbd">미정</span>'}</td></tr>`).join('')}</tbody></table>`
-    : '<p class="empty">해당 없음</p>') + '</section>';
-  h += `<div class="grid2"><section class="card"><h2><span class="ico">🕒</span>논의 흐름</h2>` +
-    (d.timeline.length ? `<ul class="timeline">${d.timeline.map(t => `<li><div class="tl-time">${E(t.time || '')}</div><div class="tl-topic">${E(t.topic)}</div></li>`).join('')}</ul>` : '<p class="empty">해당 없음</p>') + '</section>';
-  h += `<div class="stack">${list('⚠️', '미결 사항', d.open_issues, 'issues')}${list('➡️', '다음 단계', d.next_steps, 'next')}</div></div>`;
+  h += `<header class="hero${hero ? ' photo' : ''}">` + (hero ? img(hero) + `<div class="hero-credit">${E(hero.caption || hero.title)} · ${E(photoCredit(hero))}</div>` : '');
+  h += `<div class="hero-in"><div class="eyebrow">MEETING REPORT</div><h1>${E(d.title)}</h1>` + (d.one_line_summary ? `<p class="lead">${E(d.one_line_summary)}</p>` : '');
+  h += `<div class="chips"><span class="chip">📅 ${E(meta.date)}</span>` + (meta.duration ? `<span class="chip">⏱ ${E(meta.duration)}</span>` : '') + `<span class="chip">🎙 ${E(meta.source)}</span></div></div></header>`;
+
+  if (d.numbers.length) h += `<section class="kpis">${d.numbers.map(n => `<div class="kpi"><div class="kpi-value">${E(n.value)}</div><div class="kpi-label">${E(n.label)}${TS(n.time)}</div></div>`).join('')}</section>`;
+  else h += '<div style="height:16px"></div>';
+
+  if (d.key_points.length) {
+    const body = `<h2>핵심 논의</h2><ol class="points">${d.key_points.map(p => `<li><span>${E(p.text)}</span>${TS(p.time)}</li>`).join('')}</ol>`;
+    h += feat ? `<section class="card feature"><div class="body">${body}</div>${fig(feat)}</section>` : `<section class="card">${body}</section>`;
+  }
+
+  const mid = [];
+  if (d.decisions.length) mid.push(card('결정 사항', `<ul class="checks">${d.decisions.map(p => `<li><span>${E(p.text)}</span>${TS(p.time)}</li>`).join('')}</ul>`));
+  if (d.action_items.length) mid.push(card('액션 아이템', `<table class="actions"><thead><tr><th>할 일</th><th>담당</th><th>기한</th></tr></thead><tbody>${d.action_items.map(a =>
+    `<tr><td>${E(a.task)} ${TS(a.time)}</td><td>${a.owner ? `<span class="badge">${E(a.owner)}</span>` : '<span class="tbd">미지정</span>'}</td><td>${a.due ? E(a.due) : '<span class="tbd">미정</span>'}</td></tr>`).join('')}</tbody></table>`));
+  h += row(mid);
+
+  if (gal.length) h += `<section class="gallery">${gal.map(fig).join('')}</section>`;
+
+  const low = [];
+  if (d.timeline.length) low.push(card('논의 흐름', `<ul class="timeline">${d.timeline.map(t => `<li><div class="tl-time">${E(t.time || '')}</div><div class="tl-topic">${E(t.topic)}</div></li>`).join('')}</ul>`));
+  if (d.open_issues.length) low.push(card('미결 사항', list('issues', d.open_issues)));
+  if (d.next_steps.length) low.push(card('다음 단계', list('next', d.next_steps)));
+  h += low.length === 3 ? row(low.slice(0, 2)) + low[2] : row(low);
+
   const now = new Date();
-  h += `<footer>AI가 자동 음성 인식 대본으로 만든 요약입니다. 중요한 내용은 원본 대본과 녹음으로 확인하세요. · 생성 ${E(today())} ${pad2(now.getHours())}:${pad2(now.getMinutes())}</footer></main></body></html>`;
+  h += `<footer>AI가 자동 음성 인식 대본으로 만든 요약입니다. 중요한 내용은 원본 대본과 녹음으로 확인하세요. · 생성 ${E(today())} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  if (ph.length) h += `<div class="credits">사진 출처(Wikimedia Commons): ${ph.map(p => `${E(p.title)} — ${E(photoCredit(p))}`).join(' / ')}</div>`;
+  h += '</footer></main></body></html>';
   return h;
 }
 
 function fmtDuration(sec) {
-  if (!sec) return '';
+  if (!sec || sec < 1) return '';
   const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = Math.floor(sec % 60);
   return h ? `${h}시간 ${m}분` : `${m}분 ${s}초`;
 }
 
 async function makeInfographic(transcript, meta, baseName, job) {
   if (!transcript.trim()) throw new Error('요약할 내용이 없습니다');
+  const at = meta.at;
+  // date: shown on the infographic; ymd: same yyyy-MM-dd form the desktop GPT request uses.
+  meta = { ...meta, date: at.toLocaleString('ko-KR'), ymd: `${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())}` };
   const data = await summarizeToInfo(transcript, job);
   if (!job.active()) return;
-  const html = renderInfographic(data, meta);
+  const photos = await findPhotos(data.visuals, job);
+  if (!job.active()) return;
+  const html = renderInfographic(data, meta, photos);
   showHtml(data.title, html, `${baseName}_인포그래픽.html`);
   viewerData.gptPrompt = buildGptPrompt(data, meta);
+  // Sent to ChatGPT with the request as reference photos (where the share target accepts files).
+  viewerData.gptFiles = photos.map((p, i) => new File([p.blob], `참고사진_${i + 1}.jpg`, { type: 'image/jpeg' }));
   $('viewerGpt').style.display = '';
+  if (!store.get('bmt.gptHinted', false)) { store.set('bmt.gptHinted', true); toast('🎨 버튼으로 ChatGPT에서 실사 인포그래픽 이미지를 만들 수 있습니다', 4500); }
 }
 
-
-/* ---------------- Preserve share-to-ChatGPT from hosted GitHub app ---------------- */
+// Request text for the user's own ChatGPT (paid: web search, reasoning, image generation). It asks
+// for a consulting-report style landscape one-pager: the content restructured into a story,
+// precise product renders instead of decorative scenes, no empty sections or filler tiles.
+// Keep in sync with InfographicRenderer.BuildGptImagePrompt (desktop).
 function buildGptPrompt(d, meta) {
-  const str=v=>typeof v==='string'?v.trim():'';
-  const L=[
-    '아래 검증된 회의 내용만으로 가로형 16:9 비즈니스 인포그래픽 이미지 한 장을 직접 생성해 주세요. 텍스트 답변만 하지 마세요.',
-    '임의 수치, 결론, 담당자, 기한, 회사명, 사실을 추가하지 마세요. 기술적 개념도는 실제 설계도처럼 오인되지 않게 하세요. 논의 주제가 확인되는 경우에만 관련 기술 부품의 사실 기반 삽화를 사용하고, 한국어 텍스트는 짧고 정확하게 배치하세요.',
-    '[제목] '+d.title,
-    '[한 줄 요약] '+(d.one_line_summary||''),
-    '[회의 정보] '+[meta.date,meta.duration].filter(Boolean).join(' · ')
+  const s = v => typeof v === 'string' ? v.trim() : '';
+  const L = [
+    '아래 회의 내용으로 기술 보고서 수준의 인포그래픽 한 장을 만들어 주세요. 컨설팅 보고서·기술 제안서 한 페이지 수준의 완성도로, 가로형 3:2(1536×1024) 이미지 한 장입니다.', '',
+    '[작업 순서]',
+    '1. 구성: [내용]을 읽고 회의의 핵심 메시지 한 줄을 정한 뒤, 내용을 3~5개의 큰 덩어리로 재구성하세요 (예: 목표·배경 → 핵심 기술 이슈 → 검토 방향·대안 비교 → 추진 계획·다음 단계 → 기대 효과). "핵심 논의", "결정 사항" 같은 회의록 항목명을 그대로 쓰지 말고 내용에 맞는 구체적인 구역 제목을 붙이세요. 사실은 [내용]에 있는 것만 쓰고 지어내지 마세요.',
+    '2. 실물 확인: 웹 검색으로 [시각화 대상]의 실제 제품·부품·공정 사진과 구조를 찾아 형상, 재질, 구성(예: 고정자·회전자·권선 배치)을 확인하세요. 함께 첨부한 사진이 있으면 그것도 참고하세요.',
+    '3. 생성: 아래 [디자인] 규칙대로 이미지를 만드세요.',
+    '4. 검수: 깨진 글자가 있거나, 의미·확정 여부·수치·단위·고유명사가 [내용]과 다르면 고쳐서 다시 생성하세요.', '',
+    '[디자인]',
+    '- 레이아웃: 상단 남색 헤더 띠(왼쪽에 제목·부제, 오른쪽에 핵심 메시지 한 줄, 회의 날짜는 헤더 구석에 작게) → 본문은 카드 2~3단 그리드나 왼쪽에서 오른쪽으로 흐르는 단계형 화살표 띠 → 맨 아래 다음 단계·기대 효과 띠',
+    '- 비주얼: 기술 구역마다 해당 부품·설비의 정밀한 포토리얼 3D 제품 렌더(밝은 스튜디오 조명, 사실적인 금속·구리·강판·PCB 질감)를 넣고, 내용에 맞게 분해도, 단면도, "기존 방식 → 대안" 비교 렌더를 활용하세요. 열분포·자속밀도 같은 해석 컬러맵은 [내용]에 해석 결과가 있을 때만 쓰고, 없으면 쓰지 않거나 "개념도"라고 표시해 실제 결과처럼 보이지 않게 하세요',
+    '- 쓰지 말 것: 사람, 악수, 회의 장면, 공장 건물 같은 장식 그림 / 만화·플랫 일러스트·클립아트 / 날짜·시간만 크게 넣은 카드 / "없음", "-" 같은 빈 칸이나 내용 없는 구역',
+    '- 아이콘은 얇은 선 아이콘으로 통일해 항목 앞에 작게',
+    '- 색: 남색과 흰 바탕에 파랑·청록 포인트, 단계 구분은 남색 → 청록 → 초록',
+    '- 글씨: 굵고 또렷한 한글 고딕. 항목은 한 줄짜리 짧은 명사구로 다듬어도 되지만 의미·수치·단위·고유명사는 바꾸지 마세요. 부품 렌더에는 짧은 이름표를 붙이세요.',
   ];
-  const sect=(name,arr)=>{if(arr.length)L.push('',name+':',...arr.map(x=>'- '+x));};
-  sect('핵심 수치',d.numbers.slice(0,4).map(x=>str(x.label)+': '+str(x.value)));
-  sect('핵심 논의',d.key_points.slice(0,5).map(x=>str(x.text)));
-  sect('확정된 결정사항',d.decisions.slice(0,4).map(x=>str(x.text)));
-  sect('실행 항목',d.action_items.slice(0,5).map(x=>str(x.task)+' / 담당: '+(str(x.owner)||'미정')+' / 기한: '+(str(x.due)||'미정')));
-  sect('미결 사항',d.open_issues.slice(0,3).map(str));
-  sect('다음 단계',d.next_steps.slice(0,3).map(str));
+  if (d.visuals.length) {
+    L.push('', '[시각화 대상]');
+    d.visuals.forEach((v, i) => L.push(`${i + 1}. ${s(v.caption) || s(v.query) || s(v.broad_query)} — ${s(v.scene) || s(v.query) || s(v.broad_query)}`));
+  }
+  L.push('', '[회의 정보]', `제목: ${d.title}`);
+  if (s(meta.partner)) L.push(`상대 회사: ${s(meta.partner)} (헤더에 우리 측 × 상대 회사 형태로 표기. 로고는 실제 로고를 확인한 경우에만 쓰고, 아니면 회사명을 글자로)`);
+  L.push(`날짜: ${meta.ymd}`);
+  L.push('', '[내용]');
+  if (d.one_line_summary) L.push(`요약: ${d.one_line_summary}`);
+  const section = (title, lines) => { if (lines.length) L.push('', `${title}:`, ...lines.map(x => `- ${x}`)); };
+  section('주요 수치', d.numbers.slice(0, 6).map(n => `${s(n.value)} — ${s(n.label)}`));
+  section('논의 내용', d.key_points.slice(0, 7).map(p => s(p.text)));
+  section('논의 흐름', d.timeline.slice(0, 6).map(t => s(t.topic)));
+  section('합의된 사항', d.decisions.slice(0, 5).map(p => s(p.text)));
+  section('할 일', d.action_items.slice(0, 6).map(a => s(a.task) + [s(a.owner) && `담당 ${s(a.owner)}`, s(a.due) && `기한 ${s(a.due)}`].filter(Boolean).map(x => ` (${x})`).join('')));
+  section('남은 과제', d.open_issues.slice(0, 5).map(s));
+  section('다음 단계', d.next_steps.slice(0, 4).map(s));
   return L.join('\n');
 }
+
 async function copyText(text) {
-  try {await navigator.clipboard.writeText(text);return true;}
+  try { await navigator.clipboard.writeText(text); return true; }
   catch {
-    const t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.position='fixed';t.style.opacity='0';
-    document.body.appendChild(t);t.select();let ok=false;try{ok=document.execCommand('copy');}catch{}t.remove();return ok;
+    const t = document.createElement('textarea'); t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch {}
+    t.remove(); return ok;
   }
 }
-$('viewerGpt').onclick=()=>{
-  if(!viewerData||!viewerData.gptPrompt)return;
-  $('gptText').textContent=viewerData.gptPrompt;
-  openSheet('sheetGpt',true);
+
+$('viewerGpt').onclick = () => {
+  if (!viewerData || !viewerData.gptPrompt) return;
+  $('gptText').textContent = viewerData.gptPrompt;
+  openSheet('sheetGpt', true);
 };
-$('gptCopy').onclick=async()=>toast(await copyText($('gptText').textContent)?'요청문을 복사했습니다':'복사 실패 · 문구를 길게 눌러 복사하세요',4000);
-$('gptShare').onclick=async()=>{
-  const prompt=$('gptText').textContent;
-  if(navigator.share){
-    try{await navigator.share({title:'회의 이미지 인포그래픽 만들기',text:prompt});return;}
-    catch(e){if(e&&e.name==='AbortError')return;}
+const MANUAL_COPY = '자동 복사에 실패했습니다. 요청문을 길게 눌러 전체 선택 → 복사하세요';
+$('gptCopy').onclick = async () => toast(await copyText($('gptText').textContent) ? '복사했습니다 · ChatGPT 입력창에 붙여넣으세요' : MANUAL_COPY, 4000);
+$('gptShare').onclick = async () => {
+  const text = $('gptText').textContent;
+  const copied = await copyText(text);   // fallback if the chosen app doesn't take shared text
+  const files = (viewerData && viewerData.gptFiles) || [];
+  if (files.length && navigator.canShare && navigator.canShare({ text, files })) {
+    try {
+      await navigator.share({ text, files });
+      // Some apps keep only the photos from a mixed share; the text is on the clipboard.
+      toast(copied ? `참고 사진 ${files.length}장을 보냈습니다 · 요청문이 안 보이면 입력창에 붙여넣으세요` : MANUAL_COPY, 5000);
+      return;
+    } catch (e) { if (e && e.name === 'AbortError') return; }
   }
-  const copied=await copyText(prompt);
-  toast(copied?'공유할 수 없어 요청문을 복사했습니다. ChatGPT에 붙여넣으세요':'공유 실패 · 요청문을 길게 눌러 복사하세요',4500);
+  if (navigator.share) {
+    try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  toast(copied ? '공유를 지원하지 않아 복사만 했습니다. ChatGPT 앱에 붙여넣으세요' : MANUAL_COPY, 4500);
 };
-$('gptWeb').onclick=()=>{
-  // Never put confidential meeting text into a URL (history, server logs, link previews).
-  window.open('https://chatgpt.com/','_blank','noopener');
-  copyText($('gptText').textContent).then(ok=>toast(ok?'요청문을 복사했습니다. ChatGPT 입력창에 붙여넣으세요':'요청문을 길게 눌러 복사하세요',4500));
+$('gptWeb').onclick = async () => {
+  const text = $('gptText').textContent;
+  const copied = await copyText(text);
+  // Korean grows ~9x when URL-encoded; past this the prompt stays clipboard-only.
+  const enc = encodeURIComponent(text), inUrl = enc.length <= 12000;
+  window.open(inUrl ? 'https://chatgpt.com/?q=' + enc : 'https://chatgpt.com/', '_blank', 'noopener');
+  if (!inUrl) toast(copied ? '요청문을 복사했습니다 · ChatGPT 입력창에 붙여넣으세요' : MANUAL_COPY, 4500);
 };
 
 async function infoFromChat() {
@@ -1599,23 +1600,21 @@ async function infoFromChat() {
   try {
     const first = new Date(messages[0].at);
     const transcript = messages.map(m => `[${hm(new Date(m.at))}] [${LANGS[m.src].code}] ${m.orig}`).join('\n');
-    await makeInfographic(transcript, { date: first.toLocaleString('ko-KR'), source: settings.title || '현재 대화', duration: '' },
+    await makeInfographic(transcript, { at: first, source: settings.title || '현재 대화', duration: '', partner: settings.partnerCo },
       `${today()}_${safeName(settings.partnerCo)}`, job);
   } catch (e) { job.fail(e); }
 }
 
-async function infoFromRecording(meta, mode = 'html') {
+async function infoFromRecording(meta) {
   const job = openJob('인포그래픽', '준비 중...');
   try {
-    // 실시간 대본이 있고 오디오에 빠진 구간(gap)이 없으면 그대로 사용한다.
-    // 네트워크로 몇 건 놓친 정도(meta.failed)로 회의 전체를 다시 전사하지 않게 하는 것이 핵심.
-    let transcript = !meta.gap && meta.lines && meta.lines.length ? meta.lines.join('\n') : '';
-    if (transcript) job.progress(meta.failed ? `실시간 대본을 사용합니다 (미인식 ${meta.failed}건 제외)...` : '실시간 통역 때 만든 대본을 사용합니다...');
+    let transcript = meta.complete && meta.lines && meta.lines.length ? meta.lines.join('\n') : '';
+    if (transcript) job.progress('실시간 통역 때 만든 대본을 사용합니다...');
     else {
       // Interrupted or failed session: transcribe the stored audio utterance by utterance.
       transcript = await transcribePcmBlocks(recDb.blocks(meta.id), meta.samples / SR, job);
     }
-    await (mode === 'gpt' ? freeMakeInfographic : makeInfographic)(transcript, { date: new Date(meta.startedAt).toLocaleString('ko-KR'), duration: fmtDuration(meta.samples / SR), source: meta.name + '.wav' }, meta.name, job);
+    await makeInfographic(transcript, { at: new Date(meta.startedAt), duration: fmtDuration(meta.samples / SR), source: meta.name + '.wav', partner: meta.partner }, meta.name, job);
   } catch (e) { job.fail(e); }
 }
 
@@ -1623,7 +1622,7 @@ async function infoFromRecording(meta, mode = 'html') {
 // (whole-chunk requests turn a Korean/Chinese meeting into a single language).
 async function transcribePcmBlocks(blocks, totalSec, job) {
   const lines = [], queue = [];
-  const seg = new Segmenter(u => queue.push(u), { calibrate: false });
+  const seg = new Segmenter(u => queue.push(u));
   let done = 0;
   const run = async () => {
     while (queue.length) {
@@ -1639,7 +1638,7 @@ async function transcribePcmBlocks(blocks, totalSec, job) {
   return lines.join('\n');
 }
 
-async function infoFromFile(file, mode = 'html') {
+async function infoFromFile(file) {
   const job = openJob('인포그래픽', '오디오 파일을 읽는 중...');
   try {
     // decodeAudioData expands the whole file in memory (16 kHz float); keep it bounded on phones.
@@ -1667,7 +1666,7 @@ async function infoFromFile(file, mode = 'html') {
     }
     const transcript = await transcribePcmBlocks(blocks(), audio.duration, job);
     const base = safeName(file.name.replace(/\.[^.]+$/, ''));
-    await (mode === 'gpt' ? freeMakeInfographic : makeInfographic)(transcript, { date: new Date(file.lastModified || Date.now()).toLocaleString('ko-KR'), duration: fmtDuration(audio.duration), source: file.name }, base, job);
+    await makeInfographic(transcript, { at: new Date(file.lastModified || Date.now()), duration: fmtDuration(audio.duration), source: file.name }, base, job);
   } catch (e) { job.fail(e); }
 }
 
@@ -1739,13 +1738,12 @@ async function openRecordings() {
   if (!items.length) { list.innerHTML = '<div class="progress">저장된 녹음이 없습니다. 🎙 실시간 통역을 쓰면 자동으로 녹음됩니다.</div>'; return; }
   list.innerHTML = (recDb.failed ? '<div class="warnbox">이 브라우저는 저장소를 쓸 수 없어 녹음이 이 탭을 닫으면 사라집니다. 바로 저장하세요.</div>' : '') +
     items.map(m => `<div class="rec-item"><div class="info">${esc(m.name)}<small>${esc(new Date(m.startedAt).toLocaleString('ko-KR'))} · ${esc(fmtDuration(m.samples / SR) || '0초')}${m.complete ? ' · 대본 있음' : ''}</small></div>
-      <button data-rec-gpt="${esc(m.id)}">AI</button><button data-rec-info="${esc(m.id)}">📊</button><button data-rec-save="${esc(m.id)}">💾</button><button data-rec-del="${esc(m.id)}">🗑</button></div>`).join('');
+      <button data-rec-info="${esc(m.id)}">📊</button><button data-rec-save="${esc(m.id)}">💾</button><button data-rec-del="${esc(m.id)}">🗑</button></div>`).join('');
   list.onclick = async e => {
     const b = e.target.closest('button'); if (!b) return;
-    const id = b.dataset.recGpt || b.dataset.recInfo || b.dataset.recSave || b.dataset.recDel;
+    const id = b.dataset.recInfo || b.dataset.recSave || b.dataset.recDel;
     const meta = items.find(x => x.id === id); if (!meta) return;
-    if (b.dataset.recGpt) { closeSheets(); infoFromRecording(meta, 'gpt'); }
-    else if (b.dataset.recInfo) { closeSheets(); infoFromRecording(meta); }
+    if (b.dataset.recInfo) { closeSheets(); infoFromRecording(meta); }
     else if (b.dataset.recSave) {
       // Share needs a fresh user tap (Safari expires activation during long work), so
       // prepare the file first and offer share/save buttons once it's ready.
@@ -1765,29 +1763,30 @@ async function openRecordings() {
 }
 
 /* ---------------- sheets ---------------- */
-function openSheet(id, top=false) { closeSheets(); $('backdrop').classList.toggle('top',top); $('backdrop').classList.add('on'); $(id).classList.add('on'); }
-function closeSheets() { $('backdrop').classList.remove('on','top'); document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); }
+// top: the sheet opens over a full-screen viewer, so its backdrop must sit above it too.
+function openSheet(id, top = false) { closeSheets(); $('backdrop').classList.toggle('top', top); $('backdrop').classList.add('on'); $(id).classList.add('on'); }
+function closeSheets() { $('backdrop').classList.remove('on', 'top'); document.querySelectorAll('.sheet.on').forEach(s => s.classList.remove('on')); }
 $('backdrop').onclick = closeSheets;
 $('btnMenu').onclick = () => openSheet('sheetMenu');
 $('sheetMenu').onclick = e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act; closeSheets();
   if (act === 'install') promptInstall();
-  else if (act === 'select') { if(!messages.length)toast('지울 문장이 없습니다'); else enterSelect(); }
+  else if (act === 'select') { if (!messages.length) toast('지울 문장이 없습니다'); else enterSelect(); }
   else if (act === 'summary') doSummary();
   else if (act === 'infoChat') infoFromChat();
-  else if (act === 'infoGptChat') freeInfoFromChat();
   else if (act === 'recordings') openRecordings();
-  else if (act === 'infoGptFile') { if (!settings.apiKey) return toast('음성 인식을 위한 Groq API 키가 필요합니다 (무료 한도)'); $('fileAudio').dataset.mode = 'gpt'; $('fileAudio').value = ''; $('fileAudio').click(); }
-  else if (act === 'infoFile') { $('fileAudio').dataset.mode = 'html'; if (!settings.apiKey) return toast('먼저 ⚙ 설정에서 API 키를 입력하세요'); $('fileAudio').value = ''; $('fileAudio').click(); }
+  else if (act === 'infoFile') { if (!settings.apiKey) return toast('먼저 ⚙ 설정에서 API 키를 입력하세요'); $('fileAudio').value = ''; $('fileAudio').click(); }
   else if (act === 'export') exportLog();
   else if (act === 'newMeeting') {
     if (live) return toast('실시간 통역을 먼저 중지하세요');
+    // Confirm only when there is something to lose; the reset itself always runs so a pending
+    // "실행 취소" can't restore lines from the previous meeting.
     if (messages.length && !confirm('대화를 모두 비울까요? (녹음 목록은 유지됩니다)\n먼저 회의록을 저장하려면 취소하세요.')) return;
-    messages=[];undoState=null;clearTimeout(undoTimer);$('undoBar').classList.remove('on');exitSelect();saveMessages();renderAll();
+    messages = []; undoState = null; clearTimeout(undoTimer); $('undoBar').classList.remove('on'); exitSelect(); saveMessages(); renderAll();
   }
 };
-$('fileAudio').onchange = e => { const f = e.target.files && e.target.files[0]; if (f) infoFromFile(f, e.target.dataset.mode === 'gpt' ? 'gpt' : 'html'); };
+$('fileAudio').onchange = e => { const f = e.target.files && e.target.files[0]; if (f) infoFromFile(f); };
 
 $('btnStarred').onclick = () => {
   const st = messages.filter(m => m.star);
@@ -1826,10 +1825,8 @@ function openSettings() {
   $('setModel').value = settings.model; $('setEndpoint').value = settings.endpoint;
   $('glossaryInfo').textContent = `${settings.glossaryCsv ? '가져온 사전' : '기본 사전'} · ${glossary.length}개 용어`;
   const w = $('ctxWarn');
-  const issue = updateMicEnvironment();
-  if (issue) { w.style.display = ''; w.textContent = '⚠ ' + issue + ' (텍스트 번역은 계속 사용 가능)'; }
-  else { w.style.display = 'none'; }
-
+  if (!window.isSecureContext) { w.style.display = ''; w.textContent = '⚠ 지금 주소에서는 마이크·화면 켜짐 유지가 막혀 있습니다. https 주소로 열어야 음성 기능을 쓸 수 있습니다(텍스트 번역은 가능).'; }
+  else w.style.display = 'none';
   openSheet('sheetSettings');
 }
 $('btnSettings').onclick = openSettings;
@@ -1842,7 +1839,6 @@ $('btnSettingsSave').onclick = () => {
   });
   saveSettings(); refreshHeader(); closeSheets(); toast('저장했습니다');
 };
-
 $('btnTest').onclick = async () => {
   const key = $('setKey').value.trim();
   if (!key) return toast('API 키를 입력하세요');
@@ -1862,22 +1858,26 @@ $('btnGlossaryReset').onclick = () => { settings.glossaryCsv = null; saveSetting
 
 window.addEventListener('beforeunload', e => { if (live) { e.preventDefault(); e.returnValue = ''; } });
 
-
-/* ---------------- GitHub Pages PWA install (preserved) ---------------- */
-const isInstalled=()=> (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
-let installPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{
-  e.preventDefault();installPrompt=e;$('menuInstall').style.display='';
+/* ---------------- install as app (PWA) ---------------- */
+const isInstalled = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+let installPrompt = null;
+// Chrome/Samsung Internet hand us the install prompt once the page qualifies; keep it for the menu.
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); installPrompt = e;
+  $('menuInstall').style.display = '';
+  if (!store.get('bmt.installHinted', false)) { store.set('bmt.installHinted', true); toast('☰ 메뉴 → 📲 앱으로 설치 로 홈 화면에 추가할 수 있습니다', 4500); }
 });
-window.addEventListener('appinstalled',()=>{installPrompt=null;$('menuInstall').style.display='none';toast('설치했습니다. 홈 화면에서 실행하세요',4500);});
-async function promptInstall(){
-  if(!installPrompt){toast('브라우저 메뉴(⋮) → 홈 화면에 추가 또는 앱 설치를 누르세요',4500);return;}
-  const p=installPrompt;installPrompt=null;$('menuInstall').style.display='none';
-  try{await p.prompt();await p.userChoice;}catch{}
+window.addEventListener('appinstalled', () => { installPrompt = null; $('menuInstall').style.display = 'none'; toast('설치했습니다 · 홈 화면의 "미팅 통역" 아이콘으로 여세요', 4500); });
+async function promptInstall() {
+  if (!installPrompt) { toast('브라우저 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"를 누르세요', 4500); return; }
+  const p = installPrompt; installPrompt = null; $('menuInstall').style.display = 'none';
+  try { await p.prompt(); await p.userChoice; } catch {}
 }
-if('serviceWorker' in navigator && location.protocol==='https:'){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+// The service worker only exists on the hosted (https) copy; a locally opened file skips it.
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
+if (!isInstalled() && location.protocol === 'https:' && !('onbeforeinstallprompt' in window)) $('menuInstall').style.display = '';
 
 /* ---------------- init ---------------- */
 for (const m of messages) if (m.state === 'pending') { m.state = 'fail'; m.trans = '번역이 중단되었습니다'; }
@@ -1886,7 +1886,6 @@ loadGlossary();
 refreshHeader();
 refreshButtons();
 renderAll();
-updateMicEnvironment();
 if (!settings.apiKey) setTimeout(openSettings, 400);
 </script>
 </body>
