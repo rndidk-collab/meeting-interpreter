@@ -471,7 +471,9 @@ function coolModel(m, ms) { cooling.set(m, Math.max(cooling.get(m) || 0, Date.no
 function reserveModel(m, tok) {
   const now = Date.now(), ev = logOf(m);
   while (ev.length && now - ev[0].t >= 60000) ev.shift();
-  ev.push({ t: now, tok });
+  const entry = { t: now, tok };
+  ev.push(entry);
+  return entry;              // caller swaps in the real usage once the response arrives
 }
 // ms until this model can take one more request costing `tok` tokens (0 = now).
 function waitForModel(m, tok) {
@@ -518,7 +520,7 @@ async function groqFetch(path, makeBody, { signal, timeoutMs = 60000, maxAttempt
       if (!pick.model) break;
     }
     const model = pick.model;
-    reserveModel(model, est);
+    const reservation = reserveModel(model, est);
     const t = withTimeout(signal, timeoutMs);
     let res, text;
     try {
@@ -533,7 +535,7 @@ async function groqFetch(path, makeBody, { signal, timeoutMs = 60000, maxAttempt
       throw new Error('네트워크 오류: ' + (e && e.message || e));
     } finally { t.done(); }
     // Replace our estimate with the tokens Groq actually counted (input + output).
-    try { const j = JSON.parse(text); if (j && j.usage && j.usage.total_tokens) reserveModel(model, j.usage.total_tokens - est); } catch {}
+    try { const j = JSON.parse(text); if (j && j.usage && j.usage.total_tokens) reservation.tok = j.usage.total_tokens; } catch {}
     if (res.status === 429) {
       coolModel(model, retryDelayMs(text, attempt));
       lastErr = apiError(429, text);
@@ -563,7 +565,7 @@ async function chat({ system, user, temperature = 0.2, responseFormat = null, lo
   // Long jobs (summary, notes, infographic) start on the strongest model; short live turns
   // start on the fastest one. Either way the pool lets a 429 fall through to the next model.
   const pool = long ? DEEP_MODELS.slice() : modelPool('live', apiKey ? null : settings.model);
-  const estTokens = Math.ceil((system.length + user.length) * 0.7) + (long ? 2600 : 220);
+  const estTokens = Math.ceil((system.length + user.length) * 0.6) + (long ? 700 : 200);
   const json = await groqFetch('/chat/completions', (model) => {
     const payload = {
       model, temperature,
