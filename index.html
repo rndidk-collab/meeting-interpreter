@@ -242,7 +242,8 @@ body.selecting .star{display:none}
   <div class="field"><label>참석자</label><input id="setParticipants"></div>
   <label class="check"><input type="checkbox" id="setAutoSend"> 🎤 음성 입력 후 바로 번역 전송</label>
   <div class="row2">
-    <div class="field"><label>번역 모델</label><input id="setModel"></div>
+    <div class="field"><label>번역 모델</label><input id="setModel">
+      <div class="hint">기본 모델입니다. 한도(429)에 걸리면 다른 무료 모델로 자동 전환됩니다.</div></div>
     <div class="field"><label>Endpoint</label><input id="setEndpoint"></div>
   </div>
   <div class="field"><label>기술용어 사전 (CSV: 한국어,중국어,영어,독일어,일본어)</label>
@@ -445,14 +446,83 @@ function apiError(status, bodyText) {
 
 class Aborted extends Error { constructor() { super('취소되었습니다'); this.name = 'AbortError'; } }
 
-async function groqFetch(path, makeBody, { signal, timeoutMs = 60000, maxAttempts = 4, onWait, apiKey } = {}) {
+/* Model pools. Groq's free tier meters each chat model separately (30 RPM / 8K TPM), and the
+   Llama models left the free tier in Aug 2026, so these three are what is left. A request
+   that hits one model's 429 moves to the next model immediately instead of waiting out the
+   window — three models also mean three times the per-minute budget. */
+const MODEL_CAPS = {
+  'openai/gpt-oss-20b': { reasoning: 'low', strict: true },   // proven in this app; its prompt cache is free of the TPM meter
+  'qwen/qwen3.8-27b': { reasoning: 'none', strict: true },    // thinking off: no hidden tokens, the fastest fallback
+  'openai/gpt-oss-120b': { reasoning: 'low', strict: true },
+};
+const LIVE_MODELS = ['openai/gpt-oss-20b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-120b'];
+const DEEP_MODELS = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+const STT_MODELS = ['whisper-large-v3-turbo', 'whisper-large-v3'];
+const capsOf = m => MODEL_CAPS[m] || {};
+const modelPool = (kind, first) => [...new Set([first, ...(kind === 'deep' ? DEEP_MODELS : LIVE_MODELS)].filter(Boolean))];
+// Spend our own budget a little under the published 30 RPM / 8,000 TPM so a request almost
+// never has to be retried: the wait after a 429 is the slowest part of a meeting.
+const DEFAULT_RATE = { rpm: 26, tpm: 7000 };
+const STT_RATE = { rpm: 18, tpm: Infinity };            // whisper: 20 RPM, no token meter
+const rateOf = m => (STT_MODELS.includes(m) ? STT_RATE : DEFAULT_RATE);
+const rateLog = new Map(), cooling = new Map();         // model → [{t, tok}] · model → usable again at
+const logOf = m => { if (!rateLog.has(m)) rateLog.set(m, []); return rateLog.get(m); };
+function coolModel(m, ms) { cooling.set(m, Math.max(cooling.get(m) || 0, Date.now() + ms)); }
+function reserveModel(m, tok) {
+  const now = Date.now(), ev = logOf(m);
+  while (ev.length && now - ev[0].t >= 60000) ev.shift();
+  ev.push({ t: now, tok });
+}
+// ms until this model can take one more request costing `tok` tokens (0 = now).
+function waitForModel(m, tok) {
+  const now = Date.now(), cool = (cooling.get(m) || 0) - now;
+  if (cool > 0) return cool;
+  const ev = logOf(m), rate = rateOf(m);
+  while (ev.length && now - ev[0].t >= 60000) ev.shift();
+  let wait = 0;
+  if (ev.length + 1 > rate.rpm) wait = Math.max(wait, ev[ev.length - rate.rpm].t + 60000 - now);
+  if (rate.tpm !== Infinity) {
+    let total = ev.reduce((a, e) => a + e.tok, 0);
+    for (let i = 0; i < ev.length && total + tok > rate.tpm; i++) {
+      total -= Math.max(0, ev[i].tok); wait = Math.max(wait, ev[i].t + 60000 - now);
+    }
+  }
+  return Math.max(0, wait);
+}
+// The model of the pool that can take this request soonest; wait 0 means it can take it now.
+function pickModel(pool, tok) {
+  let best = pool[0], bestWait = Infinity;
+  for (const m of pool) {
+    const w = waitForModel(m, tok);
+    if (w <= 0) return { model: m, wait: 0 };
+    if (w < bestWait) { best = m; bestWait = w; }
+  }
+  return { model: best, wait: bestWait };
+}
+
+async function groqFetch(path, makeBody, { signal, timeoutMs = 60000, maxAttempts = 4, onWait, apiKey, models, estTokens = 400, maxSleepMs = 15000 } = {}) {
   const key = apiKey || settings.apiKey;
   if (!key) throw new Error('Groq API 키가 설정되지 않았습니다. ⚙ 설정에서 입력하세요.');
-  for (let attempt = 1; ; attempt++) {
+  const pool = (models && models.length ? models : [settings.model]).filter(Boolean);
+  const est = Math.min(estTokens, DEFAULT_RATE.tpm);   // one request never claims a whole minute of tokens
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let pick = pickModel(pool, est);
+    if (pick.wait > 0) {
+      // Every model is cooling down or full. Wait for the soonest one once, then go — this is
+      // the "14초씩 멈추는" case, and it is now rare because the pool absorbs the burst.
+      if (attempt >= maxAttempts || !pick.model) break;
+      if (onWait && pick.wait > 1500) onWait(pick.wait);
+      await abortableSleep(Math.min(pick.wait + 400, maxSleepMs), signal);
+      pick = pickModel(pool, est);
+      if (!pick.model) break;
+    }
+    const model = pick.model;
+    reserveModel(model, est);
     const t = withTimeout(signal, timeoutMs);
     let res, text;
     try {
-      const body = makeBody();
+      const body = makeBody(model);
       const headers = { Authorization: 'Bearer ' + key };
       if (typeof body === 'string') headers['Content-Type'] = 'application/json';
       res = await fetch(settings.endpoint.replace(/\/+$/, '') + path, { method: 'POST', headers, body, signal: t.signal });
@@ -462,15 +532,24 @@ async function groqFetch(path, makeBody, { signal, timeoutMs = 60000, maxAttempt
       if (e && e.name === 'AbortError') throw new Error('요청 시간이 초과되었습니다');
       throw new Error('네트워크 오류: ' + (e && e.message || e));
     } finally { t.done(); }
-    if (res.status === 429 && attempt < maxAttempts) {
-      const wait = retryDelayMs(text, attempt);
-      onWait && onWait(wait);
-      await abortableSleep(wait, signal);
-      continue;
+    // Replace our estimate with the tokens Groq actually counted (input + output).
+    try { const j = JSON.parse(text); if (j && j.usage && j.usage.total_tokens) reserveModel(model, j.usage.total_tokens - est); } catch {}
+    if (res.status === 429) {
+      coolModel(model, retryDelayMs(text, attempt));
+      lastErr = apiError(429, text);
+      continue;                                        // next attempt takes a different model at once
     }
-    if (!res.ok) throw apiError(res.status, text);
+    if (!res.ok) {
+      const err = apiError(res.status, text);
+      // Model retired from this plan or an unknown id: stop asking it, try the rest.
+      if (attempt < maxAttempts && /decommission|model_not_found|does not exist|no longer (supported|available)|unsupported model/i.test(err.message)) {
+        coolModel(model, 6 * 3600000); lastErr = err; continue;
+      }
+      throw err;
+    }
     try { return JSON.parse(text); } catch { throw new Error('응답을 해석할 수 없습니다'); }
   }
+  throw lastErr || new Error('요청 한도가 계속 걸립니다 — 잠시 뒤 다시 시도해 주세요');
 }
 function abortableSleep(ms, signal) {
   return new Promise((resolve, reject) => {
@@ -481,17 +560,24 @@ function abortableSleep(ms, signal) {
 }
 
 async function chat({ system, user, temperature = 0.2, responseFormat = null, long = false, signal, onWait, apiKey }) {
-  const payload = {
-    model: settings.model, temperature,
-    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-  };
-  if (responseFormat) payload.response_format = responseFormat;
-  if (long) payload.max_completion_tokens = 8192;
-  // gpt-oss reasons before answering; keep it short (faster translations, and long
-  // summaries don't get truncated mid-JSON by the hidden reasoning).
-  if (/gpt-oss/i.test(settings.model)) payload.reasoning_effort = 'low';
-  const json = await groqFetch('/chat/completions', () => JSON.stringify(payload),
-    { signal, onWait, apiKey, timeoutMs: long ? 180000 : 30000, maxAttempts: long ? 4 : 2 });
+  // Long jobs (summary, notes, infographic) start on the strongest model; short live turns
+  // start on the fastest one. Either way the pool lets a 429 fall through to the next model.
+  const pool = long ? DEEP_MODELS.slice() : modelPool('live', apiKey ? null : settings.model);
+  const estTokens = Math.ceil((system.length + user.length) * 0.7) + (long ? 2600 : 220);
+  const json = await groqFetch('/chat/completions', (model) => {
+    const payload = {
+      model, temperature,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      max_completion_tokens: long ? 8192 : 1200,
+    };
+    if (responseFormat) payload.response_format = responseFormat;
+    // Hidden reasoning is billed as output: qwen can switch it off (instruct mode), gpt-oss can
+    // only lower it. Both then answer without spending the budget on thinking.
+    const caps = capsOf(model);
+    if (caps.reasoning) payload.reasoning_effort = caps.reasoning;
+    if (responseFormat && /gpt-oss/.test(model)) payload.reasoning_format = 'hidden';   // raw + JSON mode is rejected
+    return JSON.stringify(payload);
+  }, { signal, onWait, apiKey, models: pool, estTokens, timeoutMs: long ? 180000 : 30000, maxAttempts: long ? 5 : 3, maxSleepMs: long ? 90000 : 15000 });
   const choice = json && json.choices && json.choices[0];
   const content = choice && choice.message && choice.message.content;
   if (choice && choice.finish_reason === 'length') throw new Error('응답이 길이 한도에서 잘렸습니다 — 다시 시도하거나 대화를 나눠서 요약하세요');
@@ -504,15 +590,15 @@ const WHISPER_LANG = { korean: 'ko', ko: 'ko', chinese: 'zh', zh: 'zh', mandarin
 // verbose_json so we get the detected language and per-segment confidence. Segments that
 // are both likely-silence and low-confidence are dropped (Whisper's own hallucination rule).
 async function transcribe(wavBlob, langHint, { signal, timeoutMs = 45000, onWait } = {}) {
-  const json = await groqFetch('/audio/transcriptions', () => {
+  const json = await groqFetch('/audio/transcriptions', (model) => {
     const fd = new FormData();
     fd.append('file', wavBlob, 'audio.wav');
-    fd.append('model', 'whisper-large-v3-turbo');
+    fd.append('model', model);          // turbo first, plain large-v3 as the fallback (own RPM budget)
     fd.append('response_format', 'verbose_json');
     fd.append('temperature', '0');
     if (langHint) fd.append('language', LANGS[langHint].whisper);
     return fd;
-  }, { signal, timeoutMs, maxAttempts: 6, onWait });
+  }, { signal, timeoutMs, maxAttempts: 6, onWait, models: STT_MODELS, estTokens: 0 });
   let text = typeof json.text === 'string' ? json.text : '';
   if (Array.isArray(json.segments)) {
     text = json.segments.filter(s => !((s.no_speech_prob || 0) > 0.6 && (s.avg_logprob || 0) < -1.0))
@@ -522,30 +608,14 @@ async function transcribe(wavBlob, langHint, { signal, timeoutMs = 45000, onWait
   return { text: text.trim(), lang: WHISPER_LANG[raw] || null, rawLang: raw };
 }
 
-const TRANSLATE_PROMPT = `You are a professional multilingual interpreter for automotive, robotics,
-manufacturing and engineering business meetings.
-
+// Kept short on purpose: every live turn sends this prompt and the free tier meters tokens per
+// minute. The rules are the same ones as before (protected tokens, numbers, units, register).
+const TRANSLATE_PROMPT = `Professional interpreter for automotive, robotics and manufacturing business meetings.
 Translate the user's message from {SOURCE_LANGUAGE} to {TARGET_LANGUAGE}.
-
-Rules:
-1. Return only the translated sentence.
-2. Do not add explanations.
-3. Do not add quotation marks.
-4. Do not add markdown.
-5. Preserve all numbers exactly.
-6. Preserve units exactly: Nm, rpm, mm, kg, kW, V, A, %, MPa, GPa, °C
-7. Preserve model names and product names.
-8. Preserve engineering acronyms: AFPM, BLDC, PLC, AI, BMS, ECU, OLP, DT, CAD, CAM
-9. Use natural professional business language.
-10. For Chinese output use Simplified Chinese.
-11. For German output use professional technical German.
-12. For English output use professional engineering/business English.
-13. For Japanese output use polite professional business Japanese (keigo where
-    appropriate for a business meeting), with technical terms in katakana where
-    that is the standard engineering usage.
-14. Tokens formatted exactly like §0§, §1§, §2§ are protected technical terms.
-    Copy each such token to the output character-for-character, unchanged,
-    in the equivalent grammatical position. Never translate or alter them.`;
+Output only the translation — no explanation, quotes, markdown or notes.
+Keep numbers and units (Nm, rpm, mm, kg, kW, V, A, %, MPa, GPa, °C), model and product names, and engineering acronyms (AFPM, BLDC, PLC, BMS, ECU, OLP, CAD, CAM) exactly as written.
+Register: Simplified Chinese for Chinese; professional technical German; engineering business English; polite keigo Japanese with technical terms in katakana where that is the standard usage.
+Tokens like §0§ or §1§ are protected technical terms: copy each character-for-character, unchanged, in the same grammatical position; never translate or alter them.`;
 
 async function translate(text, src, tgt, { signal, apiKey, long = false } = {}) {
   if (!text.trim() || src === tgt) return text;
@@ -765,13 +835,15 @@ class Resampler {
   }
 }
 
-// Port of UtteranceSegmenter.cs (same constants), operating on 16 kHz Int16 samples.
+// Port of UtteranceSegmenter.cs (same constants, tuned for the free tier), operating on 16 kHz
+// Int16 samples. The waits are longer than the desktop's so breathing and short filler don't
+// each become a separate Whisper request and translation (the per-minute limits are small).
 class Segmenter {
   constructor(onUtterance) {
     this.on = onUtterance;
     this.F = SR / 1000 * 30;                       // 30 ms frames
     const f = ms => Math.floor(ms / 30);
-    Object.assign(this, { END: f(700), SOFTMAX: f(8000), SOFTSIL: f(250), HARDMAX: f(14000), MINCHUNK: f(800), MINSPEECH: f(250), PREROLL: f(300), HANG: f(300) });
+    Object.assign(this, { END: f(1000), SOFTMAX: f(8000), SOFTSIL: f(400), HARDMAX: f(14000), MINCHUNK: f(1200), MINSPEECH: f(350), PREROLL: f(300), HANG: f(300) });
     this.carry = new Int16Array(this.F); this.carryLen = 0;
     this.frames = []; this.speech = 0; this.silence = 0; this.total = 0; this.start = 0;
     this.noise = 200; this.sinceSpeech = 0;
@@ -1066,13 +1138,30 @@ function flushBlock(s) {
   s.writes = s.writes.then(() => recDb.putBlock(s.id, index, pcm)).catch(() => { s.storeFailed = true; });
 }
 
+// When utterances are already backing up, fold the ones that follow straight after (no real
+// pause between them) into a single request. One Whisper call and one translation instead of
+// one each per breath is what keeps the queue from growing to dozens — Whisper handles ~15 s in
+// one pass, and the merged turn keeps the first turn's timestamp.
 async function consumeLive(s) {
+  const MERGE_MAX = 15, MERGE_GAP = 1.3;
+  function nextUtterance(s) {
+    const first = s.queue.shift();
+    let pcm = first.pcm, offsetSec = first.offsetSec, durationSec = first.durationSec;
+    while (s.queue.length && durationSec + s.queue[0].durationSec <= MERGE_MAX &&
+           s.queue[0].offsetSec - (offsetSec + durationSec) <= MERGE_GAP) {
+      const nx = s.queue.shift();
+      const joined = new Int16Array(pcm.length + nx.pcm.length);
+      joined.set(pcm, 0); joined.set(nx.pcm, pcm.length);
+      pcm = joined; durationSec += nx.durationSec;
+    }
+    return { pcm, offsetSec, durationSec };
+  }
   for (;;) {
     if (!s.queue.length) {
       if (s.stopping) return;
       await new Promise(r => { s.wake = r; }); s.wake = null; continue;
     }
-    const u = s.queue.shift();
+    const u = nextUtterance(s);
     s.pending = s.queue.length + 1; refreshLive();
     const mode = settings.liveMode, our = settings.our, partner = settings.partner;
     let r;
@@ -1374,11 +1463,14 @@ async function findPhotos(visuals, job) {
 }
 
 // Long transcripts are condensed into timestamped notes part by part, repeating on the
-// notes themselves until the material fits one request (free-tier TPM is small).
+// notes themselves until the material fits one request. A part plus its prompt must stay
+// inside one model's per-minute token budget (8K on the free plan), so parts are small and
+// the pool rotates models between them instead of sleeping out a 429.
+const NOTE_PART_CHARS = 2600, NOTE_FIT_CHARS = 3600;
 async function condense(transcript, job) {
   let input = transcript, isNotes = false, round = 0;
-  while (input.length > 6000 && round < 4) {
-    const parts = splitParts(input); round++;
+  while (input.length > NOTE_FIT_CHARS && round < 4) {
+    const parts = splitParts(input, NOTE_PART_CHARS); round++;
     const notes = [];
     for (let i = 0; i < parts.length; i++) {
       job.progress(`긴 회의를 나눠서 정리하는 중... ${round > 1 ? `(${round}단계) ` : ''}(${i + 1}/${parts.length})`);
@@ -1903,7 +1995,7 @@ async function promptInstall() {
 }
 // The service worker only exists on the hosted (https) copy; a locally opened file skips it.
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
 }
 if (!isInstalled() && location.protocol === 'https:' && !('onbeforeinstallprompt' in window)) $('menuInstall').style.display = '';
 
